@@ -2,8 +2,11 @@ package alicloud
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/denverdino/aliyungo/common"
 )
 
 type MongoDBInstance struct {
@@ -37,6 +40,15 @@ type DescribeMongoDBInstancesResponse struct {
 	Items      ItemsInDescribeMongoDBInstances `json:"DBInstances"`
 }
 
+type DescribeDBInstanceAttributeResponse struct {
+	Items ItemsInDescribeMongoDBInstances `json:"DBInstances"`
+}
+
+type CreateMongoDBInstanceResponse struct {
+	DBInstanceId string `json:"DBInstanceId"`
+	OrderId      string `json:"OrderId"`
+}
+
 func (client *AliyunClient) DescribeMongoDBInstances(request *requests.CommonRequest) (response *DescribeMongoDBInstancesResponse, err error) {
 	request.Version = ApiVersion20151201
 	request.ApiName = "DescribeDBInstances"
@@ -48,4 +60,65 @@ func (client *AliyunClient) DescribeMongoDBInstances(request *requests.CommonReq
 	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
 
 	return response, err
+}
+
+func (client *AliyunClient) CreateMongoDBInstance(request *requests.CommonRequest) (response *CreateMongoDBInstanceResponse, err error) {
+	request.Version = ApiVersion20151201
+	request.ApiName = "CreateDBInstance"
+	resp, err := client.ecsconn.ProcessCommonRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	response = new(CreateMongoDBInstanceResponse)
+	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
+
+	return response, err
+}
+
+// WaitForInstance waits for instance to given status
+func (client *AliyunClient) WaitForMongoDBInstance(instanceId string, regionId string, status Status, timeout int) error {
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	for {
+		instance, err := client.DescribeMongoDBInstanceById(instanceId, regionId)
+		if err != nil && !NotFoundError(err) && !IsExceptedError(err, InvalidDBInstanceIdNotFound) {
+			return err
+		}
+		if instance != nil && instance.DBInstanceStatus == string(status) {
+			break
+		}
+
+		if timeout <= 0 {
+			return common.GetClientErrorFromString("Timeout")
+		}
+
+		timeout = timeout - DefaultIntervalMedium
+		time.Sleep(DefaultIntervalMedium * time.Second)
+	}
+	return nil
+}
+
+func (client *AliyunClient) DescribeMongoDBInstanceById(id string, regionId string) (*MongoDBInstance, error) {
+	request := CommonRequestInit(regionId, MONGODBCode, MongoDBDomain)
+	request.RegionId = regionId
+	request.Version = ApiVersion20151201
+	request.ApiName = "DescribeDBInstanceAttribute"
+	request.QueryParams["DBInstanceId"] = id
+
+	resp, err := client.ecsconn.ProcessCommonRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	response := new(DescribeDBInstanceAttributeResponse)
+	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
+
+	attr := response.Items.DBInstances
+
+	if len(attr) <= 0 {
+		return nil, GetNotFoundErrorFromString(fmt.Sprintf("DB instance %s is not found.", id))
+	}
+
+	return &attr[0], nil
 }
