@@ -49,6 +49,17 @@ type CreateMongoDBInstanceResponse struct {
 	OrderId      string `json:"OrderId"`
 }
 
+type DescribeMongoDBSecurityIpsResponse struct {
+	SecurityIps      string                   `json:"SecurityIps"`
+	SecurityIpGroups []SecurityMongoDBIpGroup `json"SecurityIpGroups"`
+}
+
+type SecurityMongoDBIpGroup struct {
+	SecurityIpGroupName string `json:"SecurityIpGroupName"`
+	SecurityIpList      string `json:"SecurityIpList"`
+	SecurityIpAttribute string `json:"SecurityIpAttribute"`
+}
+
 func (client *AliyunClient) DescribeMongoDBInstances(request *requests.CommonRequest) (response *DescribeMongoDBInstancesResponse, err error) {
 	request.Version = ApiVersion20151201
 	request.ApiName = "DescribeDBInstances"
@@ -121,4 +132,8 @@ func (client *AliyunClient) DescribeMongoDBInstanceById(id string, regionId stri
 	}
 
 	return &attr[0], nil
+}
+
+func (client *AliyunClient) DescribeMongoDBSecurityIps(request *requests.CommonRequest) (*DescribeMongoDBSecurityIpsResponse, error) {
+	return nil, nil
 }

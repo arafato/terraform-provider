@@ -146,6 +146,7 @@ func Provider() terraform.ResourceProvider {
 			"alicloud_log_store":                   resourceAlicloudLogStore(),
 			"alicloud_log_store_index":             resourceAlicloudLogStoreIndex(),
 			"alicloud_log_machine_group":           resourceAlicloudLogMachineGroup(),
+			"alicloud_mongodb_instance":            resourceAlicloudMongoDBInstance(),
 		},
 
 		ConfigureFunc: providerConfigure,

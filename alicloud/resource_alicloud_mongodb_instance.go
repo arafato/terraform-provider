@@ -135,7 +135,7 @@ func resourceAlicloudMongoDBInstanceUpdate(d *schema.ResourceData, meta interfac
 		if ipstr == "" {
 			ipstr = LOCAL_HOST_IP
 		}
-
+		// TODO: and for update, implement ModifyMongoDBSecurityIps: https://www.alibabacloud.com/help/doc-detail/62157.htm
 		if err := client.ModifyDBSecurityIps(d.Id(), ipstr); err != nil {
 			return fmt.Errorf("Moodify DB security ips %s got an error: %#v", ipstr, err)
 		}
@@ -199,26 +199,24 @@ func resourceAlicloudMongoDBInstanceRead(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("Error Describe DB InstanceAttribute: %#v", err)
 	}
 
-	// TODO: implement DescribeSecurityIPs: https://www.alibabacloud.com/help/doc-detail/62156.htm
-	// TODO: and for update, implement ModifySecurityIps: https://www.alibabacloud.com/help/doc-detail/62157.htm
-	ips, err := client.GetSecurityIps(d.Id())
+	request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+	request.RegionId = getRegionId(d, meta)
+	request.QueryParams["DBInstanceId"] = d.Id()
+	ips, err := client.DescribeMongoDBSecurityIps(request)
 	if err != nil {
 		return fmt.Errorf("[ERROR] Describe DB security ips error: %#v", err)
 	}
 
-	d.Set("security_ips", ips)
-
-	d.Set("engine", instance.Engine)
+	d.Set("security_ips", strings.Split(ips.SecurityIps, COMMA_SEPARATED))
+	d.Set("storage_engine", instance.Engine)
 	d.Set("engine_version", instance.EngineVersion)
-	d.Set("instance_type", instance.DBInstanceClass)
-	d.Set("port", instance.Port)
+	d.Set("instance_class", instance.DBInstanceClass)
 	d.Set("instance_storage", instance.DBInstanceStorage)
-	d.Set("zone_id", instance.ZoneId)
-	d.Set("instance_charge_type", instance.PayType)
+	d.Set("instance_charge_type", instance.ChargeType)
 	d.Set("period", d.Get("period"))
-	d.Set("vswitch_id", instance.VSwitchId)
-	d.Set("connection_string", instance.ConnectionString)
-	d.Set("instance_name", instance.DBInstanceDescription)
+	d.Set("description", instance.DBInstanceDescription)
+	d.Set("zone_id", instance.ZoneID)
+	d.Set("network_type", instance.NetworkType)
 
 	return nil
 }
@@ -268,7 +266,7 @@ func resourceAlicloudMongoDBInstanceDelete(d *schema.ResourceData, meta interfac
 func buildMongoDBCreateRequest(d *schema.ResourceData, meta interface{}) (*requests.CommonRequest, error) {
 	request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
 	request.RegionId = getRegionId(d, meta)
-	request.QueryParams["Engine"] = "ApsaraDB for MongoDB"
+	request.QueryParams["Engine"] = "MongoDB"
 	request.QueryParams["EngineVersion"] = d.Get("engine_version").(string)
 	request.QueryParams["DBInstanceClass"] = d.Get("instance_class").(string)
 	request.QueryParams["DBInstanceStorage"] = strconv.Itoa(d.Get("instance_storage").(int))
