@@ -11,7 +11,7 @@ resource "alicloud_mongodb_instance" "mymongo" {
 }
 
 resource "alicloud_mongodb_backup_policy" "mongodb_backup" {
-  instance_id             = "${alicloud_mongodb_instance.mongodb.id}"
+  instance_id             = "${alicloud_mongodb_instance.mymongo.id}"
   preferred_backup_time   = "00:00Z-04:00Z"
   preferred_backup_period = "Friday"
 }
