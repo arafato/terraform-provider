@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
-func resourceAlicloudRKVBackupPolicy() *schema.Resource {
+func resourceAlicloudMongoDBBackupPolicy() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceAlicloudMongoDBBackupPolicyCreate,
 		Read:   resourceAlicloudMongoDBBackupPolicyRead,
