@@ -64,6 +64,12 @@ type SecurityMongoDBIpGroup struct {
 	SecurityIpAttribute string `json:"SecurityIpAttribute"`
 }
 
+type DescribeMongoDBBackupPolicyResponse struct {
+	BackupRetentionPeriod string `json:"BackupRetentionPeriod"`
+	PreferredBackupTime   string `json:"PreferredBackupTime"`
+	PreferredBackupPeriod string `json:"PreferredBackupPeriod"`
+}
+
 func (client *AliyunClient) DescribeMongoDBInstances(request *requests.CommonRequest) (response *DescribeMongoDBInstancesResponse, err error) {
 	request.Version = ApiVersion20151201
 	request.ApiName = "DescribeDBInstances"
@@ -183,4 +189,23 @@ func (client *AliyunClient) ModifyMongoDBInstanceDescription(request *requests.C
 	request.ApiName = "ModifyDBInstanceDescription"
 	_, err := client.ecsconn.ProcessCommonRequest(request)
 	return err
+}
+
+func (client *AliyunClient) ModifyMongoDBBackupPolicy(request *requests.CommonRequest) error {
+	request.Version = ApiVersion20151201
+	request.ApiName = "ModifyBackupPolicy"
+	_, err := client.ecsconn.ProcessCommonRequest(request)
+	return err
+}
+
+func (client *AliyunClient) DescribeMongoDBBackupPolicy(request *requests.CommonRequest) (*DescribeMongoDBBackupPolicyResponse, error) {
+	request.Version = ApiVersion20151201
+	request.ApiName = "DescribeBackupPolicy"
+	resp, err := client.ecsconn.ProcessCommonRequest(request)
+	response := new(DescribeMongoDBBackupPolicyResponse)
+	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
