@@ -2,10 +2,10 @@ package alicloud
 
 import (
 	"fmt"
+	"log"
+	"strconv"
 	"strings"
 	"time"
-
-	"strconv"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
@@ -34,7 +34,6 @@ func resourceAlicloudMongoDBInstance() *schema.Resource {
 			"storage_engine": &schema.Schema{
 				Type:         schema.TypeString,
 				ValidateFunc: validateAllowedStringValue([]string{"WiredTiger", "RocksDB"}),
-				ForceNew:     true,
 				Optional:     true,
 				Default:      "WiredTiger",
 			},
@@ -206,9 +205,8 @@ func resourceAlicloudMongoDBInstanceRead(d *schema.ResourceData, meta interface{
 	if err != nil {
 		return fmt.Errorf("[ERROR] Describe DB security ips error: %#v", err)
 	}
-
+	d.SetId(instance.DBInstanceID)
 	d.Set("security_ips", strings.Split(ips.SecurityIps, COMMA_SEPARATED))
-	d.Set("storage_engine", instance.Engine)
 	d.Set("engine_version", instance.EngineVersion)
 	d.Set("instance_class", instance.DBInstanceClass)
 	d.Set("instance_storage", instance.DBInstanceStorage)
@@ -224,42 +222,43 @@ func resourceAlicloudMongoDBInstanceRead(d *schema.ResourceData, meta interface{
 func resourceAlicloudMongoDBInstanceDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*AliyunClient)
 
-	instance, err := client.DescribeDBInstanceById(d.Id())
+	instance, err := client.DescribeMongoDBInstanceById(d.Id(), getRegionId(d, meta))
 	if err != nil {
 		if NotFoundDBInstance(err) {
 			return nil
 		}
-		return fmt.Errorf("Error Describe DB InstanceAttribute: %#v", err)
+		return fmt.Errorf("Error Describe MongoDB InstanceAttribute: %#v", err)
 	}
-	if PayType(instance.PayType) == Prepaid {
-		return fmt.Errorf("At present, 'Prepaid' instance cannot be deleted and must wait it to be expired and release it automatically.")
+	if PayType(instance.ChargeType) == PrePaid {
+		return fmt.Errorf("At present, 'PrePaid' instance cannot be deleted and must wait it to be expired and release it automatically.")
 	}
 
-	request := rds.CreateDeleteDBInstanceRequest()
-	request.DBInstanceId = d.Id()
-
+	request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+	request.RegionId = getRegionId(d, meta)
+	request.QueryParams["DBInstanceId"] = d.Id()
 	return resource.Retry(5*time.Minute, func() *resource.RetryError {
-		_, err := client.rdsconn.DeleteDBInstance(request)
-
+		err := client.DeleteMongoDBInstance(request)
+		log.Printf("!!!!!![Olli] After delete: %#v", err)
 		if err != nil {
 			if NotFoundDBInstance(err) {
 				return nil
 			}
-			return resource.RetryableError(fmt.Errorf("Delete DB instance timeout and got an error: %#v.", err))
+			return resource.RetryableError(fmt.Errorf("Delete MongoDB instance timeout and got an error: %#v.", err))
 		}
 
-		instance, err := client.DescribeDBInstanceById(d.Id())
+		instance, err := client.DescribeMongoDBInstanceById(d.Id(), getRegionId(d, meta))
+		log.Printf("!!!!!![Olli] After describebyid: %#v", err)
 		if err != nil {
-			if NotFoundError(err) || IsExceptedError(err, InvalidDBInstanceNameNotFound) {
+			if NotFoundError(err) || IsExceptedError(err, InvalidDBInstanceIdNotFound) {
 				return nil
 			}
-			return resource.NonRetryableError(fmt.Errorf("Error Describe DB InstanceAttribute: %#v", err))
+			return resource.NonRetryableError(fmt.Errorf("Error Describe MongoDB InstanceAttribute: %#v", err))
 		}
 		if instance == nil {
 			return nil
 		}
 
-		return resource.RetryableError(fmt.Errorf("Delete DB instance timeout and got an error: %#v.", err))
+		return resource.RetryableError(fmt.Errorf("Delete MongoDB instance timeout and got an error: %#v.", err))
 	})
 }
 
@@ -268,6 +267,7 @@ func buildMongoDBCreateRequest(d *schema.ResourceData, meta interface{}) (*reque
 	request.RegionId = getRegionId(d, meta)
 	request.QueryParams["Engine"] = "MongoDB"
 	request.QueryParams["EngineVersion"] = d.Get("engine_version").(string)
+	request.QueryParams["StorageEngine"] = d.Get("storage_engine").(string)
 	request.QueryParams["DBInstanceClass"] = d.Get("instance_class").(string)
 	request.QueryParams["DBInstanceStorage"] = strconv.Itoa(d.Get("instance_storage").(int))
 	request.QueryParams["DBInstanceDescription"] = d.Get("description").(string)

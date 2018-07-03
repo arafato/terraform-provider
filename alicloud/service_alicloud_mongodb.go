@@ -50,8 +50,12 @@ type CreateMongoDBInstanceResponse struct {
 }
 
 type DescribeMongoDBSecurityIpsResponse struct {
-	SecurityIps      string                   `json:"SecurityIps"`
-	SecurityIpGroups []SecurityMongoDBIpGroup `json"SecurityIpGroups"`
+	SecurityIps string                                    `json:"SecurityIps"`
+	Items       ItemsInDescribeMongoDBSecurityIpsResponse `json"SecurityIpGroups"`
+}
+
+type ItemsInDescribeMongoDBSecurityIpsResponse struct {
+	SecurityIpGroups []SecurityMongoDBIpGroup `json"SecurityIpGroup"`
 }
 
 type SecurityMongoDBIpGroup struct {
@@ -135,5 +139,24 @@ func (client *AliyunClient) DescribeMongoDBInstanceById(id string, regionId stri
 }
 
 func (client *AliyunClient) DescribeMongoDBSecurityIps(request *requests.CommonRequest) (*DescribeMongoDBSecurityIpsResponse, error) {
-	return nil, nil
+	request.Version = ApiVersion20151201
+	request.ApiName = "DescribeSecurityIps"
+	resp, err := client.ecsconn.ProcessCommonRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	response := new(DescribeMongoDBSecurityIpsResponse)
+	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (client *AliyunClient) DeleteMongoDBInstance(request *requests.CommonRequest) error {
+	request.Version = ApiVersion20151201
+	request.ApiName = "DeleteDBInstance"
+	_, err := client.ecsconn.ProcessCommonRequest(request)
+	return err
 }
