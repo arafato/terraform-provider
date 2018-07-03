@@ -160,3 +160,27 @@ func (client *AliyunClient) DeleteMongoDBInstance(request *requests.CommonReques
 	_, err := client.ecsconn.ProcessCommonRequest(request)
 	return err
 }
+
+func (client *AliyunClient) ModifyMongoDBSecurityIps(request *requests.CommonRequest) error {
+	request.Version = ApiVersion20151201
+	request.ApiName = "ModifySecurityIps"
+	if _, ok := request.QueryParams["foo"]; ok {
+		request.QueryParams["ModifyMode"] = "Cover"
+	}
+	_, err := client.ecsconn.ProcessCommonRequest(request)
+	return err
+}
+
+func (client *AliyunClient) ModifyMongoDBInstanceSpec(request *requests.CommonRequest) error {
+	request.Version = ApiVersion20151201
+	request.ApiName = "ModifyDBInstanceSpec"
+	_, err := client.ecsconn.ProcessCommonRequest(request)
+	return err
+}
+
+func (client *AliyunClient) ModifyMongoDBInstanceDescription(request *requests.CommonRequest) error {
+	request.Version = ApiVersion20151201
+	request.ApiName = "ModifyDBInstanceDescription"
+	_, err := client.ecsconn.ProcessCommonRequest(request)
+	return err
+}

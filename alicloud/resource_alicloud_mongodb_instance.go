@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
@@ -122,62 +121,63 @@ func resourceAlicloudMongoDBInstanceCreate(d *schema.ResourceData, meta interfac
 
 func resourceAlicloudMongoDBInstanceUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*AliyunClient)
-	conn := client.rdsconn
 	d.Partial(true)
 
-	if d.HasChange("security_ips") && !d.IsNewResource() {
+	if d.HasChange("security_ips") {
 		ipList := expandStringList(d.Get("security_ips").(*schema.Set).List())
-
 		ipstr := strings.Join(ipList[:], COMMA_SEPARATED)
 		// default disable connect from outside
 		if ipstr == "" {
 			ipstr = LOCAL_HOST_IP
 		}
-		// TODO: and for update, implement ModifyMongoDBSecurityIps: https://www.alibabacloud.com/help/doc-detail/62157.htm
-		if err := client.ModifyDBSecurityIps(d.Id(), ipstr); err != nil {
-			return fmt.Errorf("Moodify DB security ips %s got an error: %#v", ipstr, err)
+		request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+		request.RegionId = getRegionId(d, meta)
+		request.QueryParams["SecurityIps"] = ipstr
+		request.QueryParams["DBInstanceId"] = d.Id()
+		if err := client.ModifyMongoDBSecurityIps(request); err != nil {
+			return fmt.Errorf("Modify MongoDB security ips %s got an error: %#v", ipstr, err)
 		}
 		d.SetPartial("security_ips")
 	}
 
 	update := false
-	request := rds.CreateModifyDBInstanceSpecRequest()
-	request.DBInstanceId = d.Id()
-	request.PayType = string(Postpaid)
+	request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+	request.RegionId = getRegionId(d, meta)
+	request.QueryParams["DBInstanceId"] = d.Id()
 
-	if d.HasChange("instance_type") && !d.IsNewResource() {
-		request.DBInstanceClass = d.Get("instance_type").(string)
-		update = true
-		d.SetPartial("instance_type")
-	}
-
-	if d.HasChange("instance_storage") && !d.IsNewResource() {
-		request.DBInstanceStorage = requests.NewInteger(d.Get("instance_storage").(int))
+	if d.HasChange("instance_storage") {
+		request.QueryParams["DBInstanceStorage"] = strconv.Itoa(d.Get("instance_storage").(int))
 		update = true
 		d.SetPartial("instance_storage")
 	}
 
+	if d.HasChange("instance_class") {
+		request.QueryParams["DBInstanceClass"] = d.Get("instance_class").(string)
+		update = true
+		d.SetPartial("instance_class")
+	}
+
 	if update {
 		// wait instance status is running before modifying
-		if err := client.WaitForDBInstance(d.Id(), Running, 500); err != nil {
+		if err := client.WaitForMongoDBInstance(d.Id(), getRegionId(d, meta), Running, 500); err != nil {
 			return fmt.Errorf("WaitForInstance %s got error: %#v", Running, err)
 		}
-		if _, err := conn.ModifyDBInstanceSpec(request); err != nil {
+		if err := client.ModifyMongoDBInstanceSpec(request); err != nil {
 			return err
 		}
 		// wait instance status is running after modifying
-		if err := client.WaitForDBInstance(d.Id(), Running, 500); err != nil {
+		if err := client.WaitForMongoDBInstance(d.Id(), getRegionId(d, meta), Running, 500); err != nil {
 			return fmt.Errorf("WaitForInstance %s got error: %#v", Running, err)
 		}
 	}
 
-	if d.HasChange("instance_name") {
-		request := rds.CreateModifyDBInstanceDescriptionRequest()
-		request.DBInstanceId = d.Id()
-		request.DBInstanceDescription = d.Get("instance_name").(string)
-
-		if _, err := conn.ModifyDBInstanceDescription(request); err != nil {
-			return fmt.Errorf("ModifyDBInstanceDescription got an error: %#v", err)
+	if d.HasChange("description") {
+		request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+		request.RegionId = getRegionId(d, meta)
+		request.QueryParams["DBInstanceId"] = d.Id()
+		request.QueryParams["DBInstanceDescription"] = d.Get("description").(string)
+		if err := client.ModifyMongoDBInstanceDescription(request); err != nil {
+			return fmt.Errorf("ModifyMongoDBInstanceDescription got an error: %#v", err)
 		}
 	}
 
