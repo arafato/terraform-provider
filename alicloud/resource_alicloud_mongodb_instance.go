@@ -2,7 +2,6 @@ package alicloud
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -238,7 +237,6 @@ func resourceAlicloudMongoDBInstanceDelete(d *schema.ResourceData, meta interfac
 	request.QueryParams["DBInstanceId"] = d.Id()
 	return resource.Retry(5*time.Minute, func() *resource.RetryError {
 		err := client.DeleteMongoDBInstance(request)
-		log.Printf("!!!!!![Olli] After delete: %#v", err)
 		if err != nil {
 			if NotFoundDBInstance(err) {
 				return nil
@@ -247,7 +245,6 @@ func resourceAlicloudMongoDBInstanceDelete(d *schema.ResourceData, meta interfac
 		}
 
 		instance, err := client.DescribeMongoDBInstanceById(d.Id(), getRegionId(d, meta))
-		log.Printf("!!!!!![Olli] After describebyid: %#v", err)
 		if err != nil {
 			if NotFoundError(err) || IsExceptedError(err, InvalidDBInstanceIdNotFound) {
 				return nil
