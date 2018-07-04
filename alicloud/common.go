@@ -368,8 +368,11 @@ const (
 
 func CommonRequestInit(region string, code ServiceCode, domain CommonRequestDomain) *requests.CommonRequest {
 	request := requests.NewCommonRequest()
-	request.Version = ApiVersion20140526
 	request.Domain = string(domain)
+	if domain == MongoDBDomain {
+		request.Domain = strings.Replace(string(domain), "mongodb.", fmt.Sprintf("mongodb.%v.", region), -1)
+	}
+	request.Version = ApiVersion20140526
 	d := LoadEndpoint(region, code)
 	if d != "" {
 		request.Domain = d
