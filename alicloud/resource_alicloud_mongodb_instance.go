@@ -78,6 +78,9 @@ func resourceAlicloudMongoDBInstance() *schema.Resource {
 				Optional:     true,
 				ForceNew:     true,
 				Default:      "Classic",
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					return true
+				},
 			},
 			"zone_id": &schema.Schema{
 				Type:     schema.TypeString,
@@ -271,6 +274,7 @@ func buildMongoDBCreateRequest(d *schema.ResourceData, meta interface{}) (*reque
 	request.QueryParams["DBInstanceDescription"] = d.Get("description").(string)
 	request.QueryParams["AccountPassword"] = d.Get("password").(string)
 	request.QueryParams["ChargeType"] = d.Get("instance_charge_type").(string)
+	// request.QueryParams["Timestamp"] = time.Now().Add(time.Hour * time.Duration(-1)).Format(time.RFC3339)
 
 	request.QueryParams["SecurityIPList"] = LOCAL_HOST_IP
 	if len(d.Get("security_ips").(*schema.Set).List()) > 0 {
