@@ -44,7 +44,9 @@ type NetworkType string
 
 const (
 	Classic = NetworkType("Classic")
+	CLASSIC = NetworkType("CLASSIC")
 	Vpc     = NetworkType("Vpc")
+	VPC     = NetworkType("VPC")
 )
 
 type TimeType string
@@ -84,6 +86,9 @@ const (
 
 	InService = Status("InService")
 	Removing  = Status("Removing")
+
+	Normall  = Status("Normal")
+	Changing = Status("Changing")
 )
 
 type IPType string
@@ -101,6 +106,7 @@ const (
 	ResourceTypeDisk     = ResourceType("Disk")
 	ResourceTypeVSwitch  = ResourceType("VSwitch")
 	ResourceTypeRds      = ResourceType("Rds")
+	ResourceTypeRkv      = ResourceType("Rkv")
 	IoOptimized          = ResourceType("IoOptimized")
 )
 
@@ -294,6 +300,7 @@ const (
 	KMSCode     = ServiceCode("KMS")
 	OTSCode     = ServiceCode("OTS")
 	LOGCode     = ServiceCode("LOG")
+	RKVCode     = ServiceCode("RKV")
 )
 
 //xml
