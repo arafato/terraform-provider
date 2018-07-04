@@ -79,6 +79,7 @@ func Provider() terraform.ResourceProvider {
 			"alicloud_security_group_rules": dataSourceAlicloudSecurityGroupRules(),
 			"alicloud_db_instances":         dataSourceAlicloudDBInstances(),
 			"alicloud_rkv_instances":        dataSourceAlicloudRKVInstances(),
+			"alicloud_mongodb_instances":    dataSourceAlicloudMongoDBInstances(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"alicloud_instance":                  resourceAliyunInstance(),
@@ -149,6 +150,8 @@ func Provider() terraform.ResourceProvider {
 			"alicloud_rkv_instance":                resourceAlicloudRKVInstance(),
 			"alicloud_rkv_security_ips":            resourceAlicloudRKVSecurityIPs(),
 			"alicloud_rkv_backup_policy":           resourceAlicloudRKVBackupPolicy(),
+			"alicloud_mongodb_instance":            resourceAlicloudMongoDBInstance(),
+			"alicloud_mongodb_backup_policy":       resourceAlicloudMongoDBBackupPolicy(),
 		},
 
 		ConfigureFunc: providerConfigure,

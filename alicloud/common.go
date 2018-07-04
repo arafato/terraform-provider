@@ -301,6 +301,7 @@ const (
 	OTSCode     = ServiceCode("OTS")
 	LOGCode     = ServiceCode("LOG")
 	RKVCode     = ServiceCode("RKV")
+	MONGODBCode = ServiceCode("MDB")
 )
 
 //xml
@@ -362,18 +363,23 @@ func LoadEndpoint(region string, serviceCode ServiceCode) string {
 
 const ApiVersion20140526 = "2014-05-26"
 const ApiVersion20140828 = "2014-08-28"
+const ApiVersion20151201 = "2015-12-01"
 
 type CommonRequestDomain string
 
 const (
-	ECSDomain = CommonRequestDomain("ecs.aliyuncs.com")
-	ESSDomain = CommonRequestDomain("ess.aliyuncs.com")
+	ECSDomain     = CommonRequestDomain("ecs.aliyuncs.com")
+	ESSDomain     = CommonRequestDomain("ess.aliyuncs.com")
+	MongoDBDomain = CommonRequestDomain("mongodb.aliyuncs.com")
 )
 
 func CommonRequestInit(region string, code ServiceCode, domain CommonRequestDomain) *requests.CommonRequest {
 	request := requests.NewCommonRequest()
-	request.Version = ApiVersion20140526
 	request.Domain = string(domain)
+	if domain == MongoDBDomain {
+		request.Domain = strings.Replace(string(domain), "mongodb.", fmt.Sprintf("mongodb.%v.", region), -1)
+	}
+	request.Version = ApiVersion20140526
 	d := LoadEndpoint(region, code)
 	if d != "" {
 		request.Domain = d
