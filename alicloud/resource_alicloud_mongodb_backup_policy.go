@@ -25,21 +25,16 @@ func resourceAlicloudMongoDBBackupPolicy() *schema.Resource {
 				ForceNew: true,
 			},
 			"preferred_backup_time": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:         schema.TypeString,
+				ValidateFunc: validateAllowedStringValue(BACKUP_TIME),
+				Optional:     true,
+				Default:      "02:00Z-03:00Z",
 			},
 			"preferred_backup_period": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-				ValidateFunc: validateAllowedStringValue([]string{
-					"Monday",
-					"Tuesday",
-					"Wednesday",
-					"Thursday",
-					"Friday",
-					"Saturday",
-					"Sunday",
-				}),
+				Type:     schema.TypeSet,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -52,7 +47,9 @@ func resourceAlicloudMongoDBBackupPolicyCreate(d *schema.ResourceData, meta inte
 	request.RegionId = getRegionId(d, meta)
 	request.QueryParams["DBInstanceId"] = d.Get("instance_id").(string)
 	request.QueryParams["PreferredBackupTime"] = d.Get("preferred_backup_time").(string)
-	request.QueryParams["PreferredBackupPeriod"] = d.Get("preferred_backup_period").(string)
+	periodList := expandStringList(d.Get("preferred_backup_period").(*schema.Set).List())
+	backupPeriod := fmt.Sprintf("%s", strings.Join(periodList[:], COMMA_SEPARATED))
+	request.QueryParams["PreferredBackupPeriod"] = backupPeriod
 
 	err := resource.Retry(5*time.Minute, func() *resource.RetryError {
 		if err := client.ModifyMongoDBBackupPolicy(request); err != nil {
@@ -91,21 +88,32 @@ func resourceAlicloudMongoDBBackupPolicyRead(d *schema.ResourceData, meta interf
 
 	d.Set("instance_id", instanceID)
 	d.Set("preferred_backup_time", policy.PreferredBackupTime)
-	d.Set("preferred_backup_period", policy.PreferredBackupPeriod)
+	d.Set("preferred_backup_period", strings.Split(policy.PreferredBackupPeriod, ","))
 
 	return nil
 }
 
 func resourceAlicloudMongoDBBackupPolicyUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*AliyunClient)
-	instanceID := strings.Split(d.Id(), COLON_SEPARATED)[0]
+	request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
+	request.RegionId = getRegionId(d, meta)
+	request.QueryParams["DBInstanceId"] = strings.Split(d.Id(), COLON_SEPARATED)[0]
+	update := false
 
-	if d.HasChange("preferred_backup_time") && d.HasChange("preferred_backup_period") {
-		request := CommonRequestInit(getRegionId(d, meta), MONGODBCode, MongoDBDomain)
-		request.RegionId = getRegionId(d, meta)
-		request.QueryParams["DBInstanceId"] = instanceID
+	if d.HasChange("preferred_backup_time") {
+		update = true
 		request.QueryParams["PreferredBackupTime"] = d.Get("preferred_backup_time").(string)
-		request.QueryParams["PreferredBackupPeriod"] = d.Get("preferred_backup_period").(string)
+
+	}
+
+	if d.HasChange("preferred_backup_period") {
+		update = true
+		periodList := expandStringList(d.Get("preferred_backup_period").(*schema.Set).List())
+		backupPeriod := fmt.Sprintf("%s", strings.Join(periodList[:], COMMA_SEPARATED))
+		request.QueryParams["PreferredBackupPeriod"] = backupPeriod
+	}
+
+	if update {
 		if err := client.ModifyMongoDBBackupPolicy(request); err != nil {
 			return err
 		}
