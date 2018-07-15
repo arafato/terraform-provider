@@ -70,6 +70,21 @@ type DescribeMongoDBBackupPolicyResponse struct {
 	PreferredBackupPeriod string `json:"PreferredBackupPeriod"`
 }
 
+type ReplicaSets struct {
+	Items ReplicaSet `json:"ReplicaSets"`
+}
+
+type ReplicaSet struct {
+	ReplicaSets []ReplicaSetRole `json:"ReplicaSet"`
+}
+
+type ReplicaSetRole struct {
+	ReplicaSetRole   string `json:"ReplicaSetRole"`
+	ConnectionDomain string `json:"ConnectionDomain`
+	ConnectionPort   string `json:"ConnectionPort"`
+	NetworkType      string `json:"NetworkType"`
+}
+
 func (client *AliyunClient) DescribeMongoDBInstances(request *requests.CommonRequest) (response *DescribeMongoDBInstancesResponse, err error) {
 	request.Version = ApiVersion20151201
 	request.ApiName = "DescribeDBInstances"
@@ -142,6 +157,30 @@ func (client *AliyunClient) DescribeMongoDBInstanceById(id string, regionId stri
 	}
 
 	return &attr[0], nil
+}
+
+func (client *AliyunClient) DescribeReplicaSetRole(id string, regionId string) ([]ReplicaSetRole, error) {
+	request := CommonRequestInit(regionId, MONGODBCode, MongoDBDomain)
+	request.RegionId = regionId
+	request.Version = ApiVersion20151201
+	request.ApiName = "DescribeReplicaSetRole"
+	request.QueryParams["DBInstanceId"] = id
+
+	resp, err := client.ecsconn.ProcessCommonRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	response := new(ReplicaSets)
+	err = json.Unmarshal(resp.BaseResponse.GetHttpContentBytes(), &response)
+
+	attr := response.Items.ReplicaSets
+
+	if len(attr) <= 0 {
+		return nil, GetNotFoundErrorFromString(fmt.Sprintf("MongoDB instance %s is not found.", id))
+	}
+
+	return attr, nil
 }
 
 func (client *AliyunClient) DescribeMongoDBSecurityIps(request *requests.CommonRequest) (*DescribeMongoDBSecurityIpsResponse, error) {
