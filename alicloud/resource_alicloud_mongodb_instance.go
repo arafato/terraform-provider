@@ -93,6 +93,34 @@ func resourceAlicloudMongoDBInstance() *schema.Resource {
 				ForceNew: true,
 				Optional: true,
 			},
+			"replicas": &schema.Schema{
+				Type: schema.TypeList,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"replica_set_role": &schema.Schema{
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"connection_domain": &schema.Schema{
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"connection_port": &schema.Schema{
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+						"network_type": &schema.Schema{
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+					},
+				},
+				Optional: true,
+				Computed: true,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					return true
+				},
+			},
 		},
 	}
 }
@@ -217,6 +245,26 @@ func resourceAlicloudMongoDBInstanceRead(d *schema.ResourceData, meta interface{
 	d.Set("description", instance.DBInstanceDescription)
 	d.Set("zone_id", instance.ZoneID)
 	d.Set("network_type", instance.NetworkType)
+
+	replicasSetRole, err := client.DescribeReplicaSetRole(d.Id(), getRegionId(d, meta))
+	if err != nil {
+		return fmt.Errorf("[ERROR] Describe MongoDB Replica Set Role error: %#v", err)
+	}
+
+	if replicasSetRole != nil {
+		replicas := make([]map[string]interface{}, 0, len(replicasSetRole))
+		for _, r := range replicasSetRole {
+			replica := make(map[string]interface{})
+			replica["replica_set_role"] = r.ReplicaSetRole
+			replica["connection_domain"] = r.ConnectionDomain
+			replica["connection_port"] = r.ConnectionPort
+			replica["network_type"] = r.NetworkType
+			replicas = append(replicas, replica)
+		}
+		if err := d.Set("replicas", replicas); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
