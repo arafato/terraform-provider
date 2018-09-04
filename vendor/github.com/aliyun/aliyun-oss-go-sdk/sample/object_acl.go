@@ -7,34 +7,34 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// ObjectACLSample shows how to set and get object ACL
+// ObjectACLSample 展示了如何设置、读取文件权限(object acl)
 func ObjectACLSample() {
-	// Create bucket
+	// 创建Bucket
 	bucket, err := GetTestBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Create object
+	// 创建object
 	err = bucket.PutObject(objectKey, strings.NewReader("YoursObjectValue"))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 1: Set bucket ACL, valid ACLs are ACLPrivate、ACLPublicRead、ACLPublicReadWrite
+	// 场景：设置Bucket ACL，可选权限有ACLPrivate、ACLPublicRead、ACLPublicReadWrite
 	err = bucket.SetObjectACL(objectKey, oss.ACLPrivate)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Get object ACL, returns one of the three values: private、public-read、public-read-write
+	// 查看Object ACL，返回的权限标识为private、public-read、public-read-write其中之一
 	goar, err := bucket.GetObjectACL(objectKey)
 	if err != nil {
 		HandleError(err)
 	}
 	fmt.Println("Object ACL:", goar.ACL)
 
-	// Delete object and bucket
+	// 删除object和bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)

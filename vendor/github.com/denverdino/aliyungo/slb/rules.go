@@ -21,10 +21,6 @@ type Rule struct {
 	VServerGroupId string
 }
 
-type Rules struct {
-	Rule []Rule
-}
-
 // Create forward rules
 //
 // You can read doc at https://help.aliyun.com/document_detail/35226.html?spm=5176.doc35226.6.671.625Omh

@@ -12,9 +12,9 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// AppendObjectSample shows the append file's usage
+// AppendObjectSample 展示了追加上传的用法
 func AppendObjectSample() {
-	// Create bucket
+	// 创建Bucket
 	bucket, err := GetTestBucket(bucketName)
 	if err != nil {
 		HandleError(err)
@@ -25,20 +25,20 @@ func AppendObjectSample() {
 	var str = "弃我去者，昨日之日不可留。 乱我心者，今日之日多烦忧！"
 	var nextPos int64
 
-	// Case 1: Append a string to the object
-	// The first append position is 0 and the return value is for the next append's position.
+	// 场景1：追加字符串到object
+	// 第一次追加的位置是0，返回值为下一次追加的位置
 	nextPos, err = bucket.AppendObject(objectKey, strings.NewReader(str), nextPos)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Second append
+	// 第二次追加
 	nextPos, err = bucket.AppendObject(objectKey, strings.NewReader(str), nextPos)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Download
+	// 下载
 	body, err := bucket.GetObject(objectKey)
 	if err != nil {
 		HandleError(err)
@@ -55,21 +55,21 @@ func AppendObjectSample() {
 		HandleError(err)
 	}
 
-	// Case 2: Append byte array to the object
+	// 场景2：追加[]byte到object
 	nextPos = 0
-	// The first append position is 0, and the return value is for the next append's position.
+	// 第一次追加的位置是0，返回值为下一次追加的位置
 	nextPos, err = bucket.AppendObject(objectKey, bytes.NewReader([]byte(str)), nextPos)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Second append
+	// 第二次追加
 	nextPos, err = bucket.AppendObject(objectKey, bytes.NewReader([]byte(str)), nextPos)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Download
+	// 下载
 	body, err = bucket.GetObject(objectKey)
 	if err != nil {
 		HandleError(err)
@@ -86,7 +86,7 @@ func AppendObjectSample() {
 		HandleError(err)
 	}
 
-	// Case 3: Append a local file to the object
+	//场景3：本地文件追加到Object
 	fd, err := os.Open(localFile)
 	if err != nil {
 		HandleError(err)
@@ -99,7 +99,7 @@ func AppendObjectSample() {
 		HandleError(err)
 	}
 
-	// Case 4: Get the next append position by GetObjectDetailedMeta
+	// 场景4，您可以通过GetObjectDetailedMeta获取下次追加的位置
 	props, err := bucket.GetObjectDetailedMeta(objectKey)
 	nextPos, err = strconv.ParseInt(props.Get(oss.HTTPHeaderOssNextAppendPosition), 10, 0)
 	if err != nil {
@@ -116,7 +116,7 @@ func AppendObjectSample() {
 		HandleError(err)
 	}
 
-	// Case 5: Specify the object properties for the first append, including the "x-oss-meta"'s custom metadata.
+	// 场景5：第一次追加操作时，可以指定Object的Properties，包括以"x-oss-meta-my"为前缀的用户自定义属性
 	options := []oss.Option{
 		oss.Expires(futureDate),
 		oss.ObjectACL(oss.ACLPublicRead),
@@ -127,7 +127,7 @@ func AppendObjectSample() {
 	if err != nil {
 		HandleError(err)
 	}
-	// Second append
+	// 第二次追加
 	fd.Seek(0, os.SEEK_SET)
 	nextPos, err = bucket.AppendObject(objectKey, strings.NewReader(str), nextPos)
 	if err != nil {
@@ -146,7 +146,7 @@ func AppendObjectSample() {
 	}
 	fmt.Println("Object ACL:", goar.ACL)
 
-	// Delete the object and bucket
+	// 删除object和bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)

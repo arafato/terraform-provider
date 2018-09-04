@@ -77,8 +77,8 @@ func (client *Client) SaveBatchTaskForDomainNameProxyServiceWithCallback(request
 type SaveBatchTaskForDomainNameProxyServiceRequest struct {
 	*requests.RpcRequest
 	UserClientIp string           `position:"Query" name:"UserClientIp"`
-	DomainName   *[]string        `position:"Query" name:"DomainName"  type:"Repeated"`
 	Lang         string           `position:"Query" name:"Lang"`
+	DomainName   *[]string        `position:"Query" name:"DomainName"  type:"Repeated"`
 	Status       requests.Boolean `position:"Query" name:"Status"`
 }
 

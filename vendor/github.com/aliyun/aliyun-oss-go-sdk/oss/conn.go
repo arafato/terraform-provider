@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// Conn defines OSS Conn
+// Conn oss conn
 type Conn struct {
 	config *Config
 	url    *urlMaker
@@ -28,9 +28,9 @@ type Conn struct {
 
 var signKeyList = []string{"acl", "uploads", "location", "cors", "logging", "website", "referer", "lifecycle", "delete", "append", "tagging", "objectMeta", "uploadId", "partNumber", "security-token", "position", "img", "style", "styleName", "replication", "replicationProgress", "replicationLocation", "cname", "bucketInfo", "comp", "qos", "live", "status", "vod", "startTime", "endTime", "symlink", "x-oss-process", "response-content-type", "response-content-language", "response-expires", "response-cache-control", "response-content-disposition", "response-content-encoding", "udf", "udfName", "udfImage", "udfId", "udfImageDesc", "udfApplication", "comp", "udfApplicationLog", "restore"}
 
-// init initializes Conn
+// init 初始化Conn
 func (conn *Conn) init(config *Config, urlMaker *urlMaker) error {
-	// New transport
+	// new Transport
 	transport := newTransport(conn, config)
 
 	// Proxy
@@ -49,7 +49,7 @@ func (conn *Conn) init(config *Config, urlMaker *urlMaker) error {
 	return nil
 }
 
-// Do sends request and returns the response
+// Do 处理请求，返回响应结果。
 func (conn Conn) Do(method, bucketName, objectName string, params map[string]interface{}, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	urlParams := conn.getURLParams(params)
@@ -59,10 +59,10 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 	return conn.doRequest(method, uri, resource, headers, data, initCRC, listener)
 }
 
-// DoURL sends the request with signed URL and returns the response result.
+// DoURL 根据已签名的URL处理请求，返回响应结果。
 func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
-	// Get URI from signedURL
+	// get uri form signedURL
 	uri, err := url.ParseRequestURI(signedURL)
 	if err != nil {
 		return nil, err
@@ -103,19 +103,19 @@ func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]s
 		}
 	}
 
-	// Transfer started
+	// transfer started
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength)
 	publishProgress(listener, event)
 
 	resp, err := conn.client.Do(req)
 	if err != nil {
-		// Transfer failed
+		// transfer failed
 		event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength)
 		publishProgress(listener, event)
 		return nil, err
 	}
 
-	// Transfer completed
+	// transfer completed
 	event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength)
 	publishProgress(listener, event)
 
@@ -123,14 +123,14 @@ func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]s
 }
 
 func (conn Conn) getURLParams(params map[string]interface{}) string {
-	// Sort
+	// sort
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	// Serialize
+	// serialize
 	var buf bytes.Buffer
 	for _, k := range keys {
 		if buf.Len() > 0 {
@@ -146,7 +146,7 @@ func (conn Conn) getURLParams(params map[string]interface{}) string {
 }
 
 func (conn Conn) getSubResource(params map[string]interface{}) string {
-	// Sort
+	// sort
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		if conn.isParamSign(k) {
@@ -155,7 +155,7 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 	}
 	sort.Strings(keys)
 
-	// Serialize
+	// serialize
 	var buf bytes.Buffer
 	for _, k := range keys {
 		if buf.Len() > 0 {
@@ -223,19 +223,19 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 
 	conn.signHeader(req, canonicalizedResource)
 
-	// Transfer started
+	// transfer started
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength)
 	publishProgress(listener, event)
 
 	resp, err := conn.client.Do(req)
 	if err != nil {
-		// Transfer failed
+		// transfer failed
 		event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength)
 		publishProgress(listener, event)
 		return nil, err
 	}
 
-	// Transfer completed
+	// transfer completed
 	event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength)
 	publishProgress(listener, event)
 
@@ -281,14 +281,14 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 	return conn.url.getSignURL(bucketName, objectName, urlParams)
 }
 
-// handleBody handles request body
+// handle request body
 func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	listener ProgressListener, tracker *readerTracker) (*os.File, hash.Hash64) {
 	var file *os.File
 	var crc hash.Hash64
 	reader := body
 
-	// Length
+	// length
 	switch v := body.(type) {
 	case *bytes.Buffer:
 		req.ContentLength = int64(v.Len())
@@ -303,20 +303,20 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
 
-	// MD5
+	// md5
 	if body != nil && conn.config.IsEnableMD5 && req.Header.Get(HTTPHeaderContentMD5) == "" {
 		md5 := ""
 		reader, md5, file, _ = calcMD5(body, req.ContentLength, conn.config.MD5Threshold)
 		req.Header.Set(HTTPHeaderContentMD5, md5)
 	}
 
-	// CRC
+	// crc
 	if reader != nil && conn.config.IsEnableCRC {
 		crc = NewCRC(crcTable(), initCRC)
 		reader = TeeReader(reader, crc, req.ContentLength, listener, tracker)
 	}
 
-	// HTTP body
+	// http body
 	rc, ok := reader.(io.ReadCloser)
 	if !ok && reader != nil {
 		rc = ioutil.NopCloser(reader)
@@ -331,7 +331,7 @@ func tryGetFileSize(f *os.File) int64 {
 	return fInfo.Size()
 }
 
-// handleResponse handles response
+// handle response
 func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response, error) {
 	var cliCRC uint64
 	var srvCRC uint64
@@ -346,10 +346,10 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 		}
 
 		if len(respBody) == 0 {
-			// No error in response body
+			// no error in response body
 			err = fmt.Errorf("oss: service returned without a response body (%s)", resp.Status)
 		} else {
-			// Response contains storage service error object, unmarshal
+			// response contains storage service error object, unmarshal
 			srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
 				resp.Header.Get(HTTPHeaderOssRequestID))
 			if err != nil { // error unmarshaling the error response
@@ -364,7 +364,7 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 			Body:       ioutil.NopCloser(bytes.NewReader(respBody)), // restore the body
 		}, err
 	} else if statusCode >= 300 && statusCode <= 307 {
-		// OSS use 3xx, but response has no body
+		// oss use 3xx, but response has no body
 		err := fmt.Errorf("oss: service returned %d,%s", resp.StatusCode, resp.Status)
 		return &Response{
 			StatusCode: resp.StatusCode,
@@ -390,7 +390,7 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 
 func calcMD5(body io.Reader, contentLen, md5Threshold int64) (reader io.Reader, b64 string, tempFile *os.File, err error) {
 	if contentLen == 0 || contentLen > md5Threshold {
-		// Huge body, use temporary file
+		// huge body, use temporary file
 		tempFile, err = ioutil.TempFile(os.TempDir(), TempFilePrefix)
 		if tempFile != nil {
 			io.Copy(tempFile, body)
@@ -403,7 +403,7 @@ func calcMD5(body io.Reader, contentLen, md5Threshold int64) (reader io.Reader, 
 			reader = tempFile
 		}
 	} else {
-		// Small body, use memory
+		// small body, use memory
 		buf, _ := ioutil.ReadAll(body)
 		sum := md5.Sum(buf)
 		b64 = base64.StdEncoding.EncodeToString(sum[:])
@@ -440,7 +440,7 @@ func xmlUnmarshal(body io.Reader, v interface{}) error {
 	return xml.Unmarshal(data, v)
 }
 
-// timeoutConn handles HTTP timeout
+// Handle http timeout
 type timeoutConn struct {
 	conn        net.Conn
 	timeout     time.Duration
@@ -494,7 +494,7 @@ func (c *timeoutConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-// UrlMaker builds URL and resource
+// UrlMaker - build url and resource
 const (
 	urlTypeCname  = 1
 	urlTypeIP     = 2
@@ -502,13 +502,13 @@ const (
 )
 
 type urlMaker struct {
-	Scheme  string // HTTP or HTTPS
-	NetLoc  string // Host or IP
-	Type    int    // 1 CNAME, 2 IP, 3 ALIYUN
-	IsProxy bool   // Proxy
+	Scheme  string // http or https
+	NetLoc  string // host or ip
+	Type    int    // 1 CNAME 2 IP 3 ALIYUN
+	IsProxy bool   // proxy
 }
 
-// Init parses endpoint
+// Parse endpoint
 func (um *urlMaker) Init(endpoint string, isCname bool, isProxy bool) {
 	if strings.HasPrefix(endpoint, "http://") {
 		um.Scheme = "http"
@@ -536,7 +536,7 @@ func (um *urlMaker) Init(endpoint string, isCname bool, isProxy bool) {
 	um.IsProxy = isProxy
 }
 
-// getURL gets URL
+// Build URL
 func (um urlMaker) getURL(bucket, object, params string) *url.URL {
 	host, path := um.buildURL(bucket, object)
 	addr := ""
@@ -549,13 +549,13 @@ func (um urlMaker) getURL(bucket, object, params string) *url.URL {
 	return uri
 }
 
-// getSignURL gets sign URL
+// Build Sign URL
 func (um urlMaker) getSignURL(bucket, object, params string) string {
 	host, path := um.buildURL(bucket, object)
 	return fmt.Sprintf("%s://%s%s?%s", um.Scheme, host, path, params)
 }
 
-// buildURL builds URL
+// Build URL
 func (um urlMaker) buildURL(bucket, object string) (string, string) {
 	var host = ""
 	var path = ""
@@ -587,7 +587,7 @@ func (um urlMaker) buildURL(bucket, object string) (string, string) {
 	return host, path
 }
 
-// getResource gets canonicalized resource 
+// Canonicalized Resource
 func (um urlMaker) getResource(bucketName, objectName, subResource string) string {
 	if subResource != "" {
 		subResource = "?" + subResource

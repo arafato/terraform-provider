@@ -8,15 +8,15 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// SignURLSample signs URL sample
+// SignURLSample sign url sample
 func SignURLSample() {
-	// Create bucket
+	// 创建Bucket
 	bucket, err := GetTestBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Put object
+	// put object
 	signedURL, err := bucket.SignURL(objectKey, oss.HTTPPut, 60)
 	if err != nil {
 		HandleError(err)
@@ -28,7 +28,7 @@ func SignURLSample() {
 		HandleError(err)
 	}
 
-	// Put object with option
+	// put object with option
 	options := []oss.Option{
 		oss.Meta("myprop", "mypropval"),
 		oss.ContentType("image/tiff"),
@@ -44,7 +44,7 @@ func SignURLSample() {
 		HandleError(err)
 	}
 
-	// Get object
+	// get object
 	signedURL, err = bucket.SignURL(objectKey, oss.HTTPGet, 60)
 	if err != nil {
 		HandleError(err)
@@ -54,7 +54,7 @@ func SignURLSample() {
 	if err != nil {
 		HandleError(err)
 	}
-	// Read content
+	// read content
 	data, err := ioutil.ReadAll(body)
 	body.Close()
 	data = data // use data
@@ -64,7 +64,7 @@ func SignURLSample() {
 		HandleError(err)
 	}
 
-	// Delete the object and bucket
+	// 删除object和bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)

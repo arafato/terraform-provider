@@ -53,10 +53,8 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 	_ "google.golang.org/grpc/grpclog/glogger"
 	"google.golang.org/grpc/health"
-	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/internal"
-	"google.golang.org/grpc/internal/leakcheck"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -67,6 +65,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
 	testpb "google.golang.org/grpc/test/grpc_testing"
+	"google.golang.org/grpc/test/leakcheck"
 	"google.golang.org/grpc/testdata"
 )
 
@@ -602,7 +601,7 @@ func (te *test) listenAndServe(ts testpb.TestServiceServer, listen func(network,
 		internal.TestingUseHandlerImpl(s)
 	}
 	if te.healthServer != nil {
-		healthgrpc.RegisterHealthServer(s, te.healthServer)
+		healthpb.RegisterHealthServer(s, te.healthServer)
 	}
 	if te.testServer != nil {
 		testpb.RegisterTestServiceServer(s, te.testServer)
@@ -1888,7 +1887,9 @@ func TestStreamingRPCWithTimeoutInServiceConfigRecv(t *testing.T) {
 
 	te.resolverScheme = r.Scheme()
 	te.nonBlockingDial = true
+	fmt.Println("1")
 	cc := te.clientConn()
+	fmt.Println("10")
 	tc := testpb.NewTestServiceClient(cc)
 
 	r.NewAddress([]resolver.Address{{Addr: te.srvAddr}})
@@ -2251,7 +2252,7 @@ func testTap(t *testing.T, e env) {
 func healthCheck(d time.Duration, cc *grpc.ClientConn, serviceName string) (*healthpb.HealthCheckResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), d)
 	defer cancel()
-	hc := healthgrpc.NewHealthClient(cc)
+	hc := healthpb.NewHealthClient(cc)
 	req := &healthpb.HealthCheckRequest{
 		Service: serviceName,
 	}
@@ -3073,9 +3074,7 @@ func testMultipleSetHeaderStreamingRPCError(t *testing.T, e env) {
 		argSize  = 1
 		respSize = -1
 	)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ctx = metadata.NewOutgoingContext(ctx, testMetadata)
+	ctx := metadata.NewOutgoingContext(context.Background(), testMetadata)
 	stream, err := tc.FullDuplexCall(ctx)
 	if err != nil {
 		t.Fatalf("%v.FullDuplexCall(_) = _, %v, want <nil>", tc, err)
@@ -3151,20 +3150,20 @@ func testMalformedHTTP2Metadata(t *testing.T, e env) {
 	}
 }
 
-func TestTransparentRetry(t *testing.T) {
+func TestRetry(t *testing.T) {
 	defer leakcheck.Check(t)
 	for _, e := range listTestEnv() {
 		if e.name == "handler-tls" {
 			// Fails with RST_STREAM / FLOW_CONTROL_ERROR
 			continue
 		}
-		testTransparentRetry(t, e)
+		testRetry(t, e)
 	}
 }
 
-// This test makes sure RPCs are retried times when they receive a RST_STREAM
+// This test make sure RPCs are retried times when they receive a RST_STREAM
 // with the REFUSED_STREAM error code, which the InTapHandle provokes.
-func testTransparentRetry(t *testing.T, e env) {
+func testRetry(t *testing.T, e env) {
 	te := newTest(t, e)
 	attempts := 0
 	successAttempt := 2
@@ -4845,11 +4844,8 @@ type stubServer struct {
 
 	// A client connected to this service the test may use.  Created in Start().
 	client testpb.TestServiceClient
-	cc     *grpc.ClientConn
 
 	cleanups []func() // Lambdas executed in Stop(); populated by Start().
-
-	r *manual.Resolver
 }
 
 func (ss *stubServer) EmptyCall(ctx context.Context, in *testpb.Empty) (*testpb.Empty, error) {
@@ -4861,11 +4857,7 @@ func (ss *stubServer) FullDuplexCall(stream testpb.TestService_FullDuplexCallSer
 }
 
 // Start starts the server and creates a client connected to it.
-func (ss *stubServer) Start(sopts []grpc.ServerOption, dopts ...grpc.DialOption) error {
-	r, cleanup := manual.GenerateAndRegisterManualResolver()
-	ss.r = r
-	ss.cleanups = append(ss.cleanups, cleanup)
-
+func (ss *stubServer) Start(sopts []grpc.ServerOption) error {
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return fmt.Errorf(`net.Listen("tcp", "localhost:0") = %v`, err)
@@ -4877,38 +4869,14 @@ func (ss *stubServer) Start(sopts []grpc.ServerOption, dopts ...grpc.DialOption)
 	go s.Serve(lis)
 	ss.cleanups = append(ss.cleanups, s.Stop)
 
-	target := ss.r.Scheme() + ":///" + lis.Addr().String()
-
-	opts := append([]grpc.DialOption{grpc.WithInsecure()}, dopts...)
-	cc, err := grpc.Dial(target, opts...)
+	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		return fmt.Errorf("grpc.Dial(%q) = %v", target, err)
+		return fmt.Errorf("grpc.Dial(%q) = %v", lis.Addr().String(), err)
 	}
-	ss.cc = cc
-	ss.r.NewAddress([]resolver.Address{{Addr: lis.Addr().String()}})
-	if err := ss.waitForReady(cc); err != nil {
-		return err
-	}
-
 	ss.cleanups = append(ss.cleanups, func() { cc.Close() })
 
 	ss.client = testpb.NewTestServiceClient(cc)
 	return nil
-}
-
-func (ss *stubServer) waitForReady(cc *grpc.ClientConn) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for {
-		s := cc.GetState()
-		if s == connectivity.Ready {
-			return nil
-		}
-		if !cc.WaitForStateChange(ctx, s) {
-			// ctx got timeout or canceled.
-			return ctx.Err()
-		}
-	}
 }
 
 func (ss *stubServer) Stop() {
@@ -5156,7 +5124,7 @@ func TestClientWriteFailsAfterServerClosesStream(t *testing.T) {
 	}
 	sopts := []grpc.ServerOption{}
 	if err := ss.Start(sopts); err != nil {
-		t.Fatalf("Error starting endpoint server: %v", err)
+		t.Fatalf("Error starting endpoing server: %v", err)
 	}
 	defer ss.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -5174,6 +5142,7 @@ func TestClientWriteFailsAfterServerClosesStream(t *testing.T) {
 			t.Fatalf("stream.Send(_) = %v, want io.EOF", err)
 		}
 	}
+
 }
 
 type windowSizeConfig struct {
@@ -6173,73 +6142,6 @@ func TestServeExitsWhenListenerClosed(t *testing.T) {
 	}
 }
 
-// Service handler returns status with invalid utf8 message.
-func TestStatusInvalidUTF8Message(t *testing.T) {
-	defer leakcheck.Check(t)
-
-	var (
-		origMsg = string([]byte{0xff, 0xfe, 0xfd})
-		wantMsg = "���"
-	)
-
-	ss := &stubServer{
-		emptyCall: func(ctx context.Context, in *testpb.Empty) (*testpb.Empty, error) {
-			return nil, status.Errorf(codes.Internal, origMsg)
-		},
-	}
-	if err := ss.Start(nil); err != nil {
-		t.Fatalf("Error starting endpoint server: %v", err)
-	}
-	defer ss.Stop()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if _, err := ss.client.EmptyCall(ctx, &testpb.Empty{}); status.Convert(err).Message() != wantMsg {
-		t.Fatalf("ss.client.EmptyCall(_, _) = _, %v (msg %q); want _, err with msg %q", err, status.Convert(err).Message(), wantMsg)
-	}
-}
-
-// Service handler returns status with details and invalid utf8 message. Proto
-// will fail to marshal the status because of the invalid utf8 message. Details
-// will be dropped when sending.
-func TestStatusInvalidUTF8Details(t *testing.T) {
-	defer leakcheck.Check(t)
-
-	var (
-		origMsg = string([]byte{0xff, 0xfe, 0xfd})
-		wantMsg = "���"
-	)
-
-	ss := &stubServer{
-		emptyCall: func(ctx context.Context, in *testpb.Empty) (*testpb.Empty, error) {
-			st := status.New(codes.Internal, origMsg)
-			st, err := st.WithDetails(&testpb.Empty{})
-			if err != nil {
-				return nil, err
-			}
-			return nil, st.Err()
-		},
-	}
-	if err := ss.Start(nil); err != nil {
-		t.Fatalf("Error starting endpoint server: %v", err)
-	}
-	defer ss.Stop()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	_, err := ss.client.EmptyCall(ctx, &testpb.Empty{})
-	st := status.Convert(err)
-	if st.Message() != wantMsg {
-		t.Fatalf("ss.client.EmptyCall(_, _) = _, %v (msg %q); want _, err with msg %q", err, st.Message(), wantMsg)
-	}
-	if len(st.Details()) != 0 {
-		// Details should be dropped on the server side.
-		t.Fatalf("RPC status contain details: %v, want no details", st.Details())
-	}
-}
-
 func TestClientDoesntDeadlockWhileWritingErrornousLargeMessages(t *testing.T) {
 	defer leakcheck.Check(t)
 	for _, e := range listTestEnv() {
@@ -6368,89 +6270,5 @@ func testRPCTimeout(t *testing.T, e env) {
 			t.Fatalf("TestService/UnaryCallv(_, _) = _, %v; want <nil>, error code: %s", err, codes.DeadlineExceeded)
 		}
 		cancel()
-	}
-}
-
-func TestDisabledIOBuffers(t *testing.T) {
-	defer leakcheck.Check(t)
-
-	payload, err := newPayload(testpb.PayloadType_COMPRESSABLE, int32(60000))
-	if err != nil {
-		t.Fatalf("Failed to create payload: %v", err)
-	}
-	req := &testpb.StreamingOutputCallRequest{
-		Payload: payload,
-	}
-	resp := &testpb.StreamingOutputCallResponse{
-		Payload: payload,
-	}
-
-	ss := &stubServer{
-		fullDuplexCall: func(stream testpb.TestService_FullDuplexCallServer) error {
-			for {
-				in, err := stream.Recv()
-				if err == io.EOF {
-					return nil
-				}
-				if err != nil {
-					t.Errorf("stream.Recv() = _, %v, want _, <nil>", err)
-					return err
-				}
-				if !reflect.DeepEqual(in.Payload.Body, payload.Body) {
-					t.Errorf("Received message(len: %v) on server not what was expected(len: %v).", len(in.Payload.Body), len(payload.Body))
-					return err
-				}
-				if err := stream.Send(resp); err != nil {
-					t.Errorf("stream.Send(_)= %v, want <nil>", err)
-					return err
-				}
-
-			}
-		},
-	}
-
-	s := grpc.NewServer(grpc.WriteBufferSize(0), grpc.ReadBufferSize(0))
-	testpb.RegisterTestServiceServer(s, ss)
-
-	lis, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
-	}
-
-	done := make(chan struct{})
-	go func() {
-		s.Serve(lis)
-		close(done)
-	}()
-	defer s.Stop()
-	dctx, dcancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer dcancel()
-	cc, err := grpc.DialContext(dctx, lis.Addr().String(), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithWriteBufferSize(0), grpc.WithReadBufferSize(0))
-	if err != nil {
-		t.Fatalf("Failed to dial server")
-	}
-	defer cc.Close()
-	c := testpb.NewTestServiceClient(cc)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	stream, err := c.FullDuplexCall(ctx, grpc.FailFast(false))
-	if err != nil {
-		t.Fatalf("Failed to send test RPC to server")
-	}
-	for i := 0; i < 10; i++ {
-		if err := stream.Send(req); err != nil {
-			t.Fatalf("stream.Send(_) = %v, want <nil>", err)
-		}
-		in, err := stream.Recv()
-		if err != nil {
-			t.Fatalf("stream.Recv() = _, %v, want _, <nil>", err)
-		}
-		if !reflect.DeepEqual(in.Payload.Body, payload.Body) {
-			t.Fatalf("Received message(len: %v) on client not what was expected(len: %v).", len(in.Payload.Body), len(payload.Body))
-		}
-	}
-	stream.CloseSend()
-	if _, err := stream.Recv(); err != io.EOF {
-		t.Fatalf("stream.Recv() = _, %v, want _, io.EOF", err)
 	}
 }

@@ -16,7 +16,7 @@ type OssUploadSuite struct {
 
 var _ = Suite(&OssUploadSuite{})
 
-// SetUpSuite runs once when the suite starts running
+// Run once when the suite starts running
 func (s *OssUploadSuite) SetUpSuite(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -32,9 +32,9 @@ func (s *OssUploadSuite) SetUpSuite(c *C) {
 	testLogger.Println("test upload started")
 }
 
-// TearDownSuite runs before each test or benchmark starts running
+// Run before each test or benchmark starts running
 func (s *OssUploadSuite) TearDownSuite(c *C) {
-	// Delete part
+	// Delete Part
 	lmur, err := s.bucket.ListMultipartUploads()
 	c.Assert(err, IsNil)
 
@@ -45,7 +45,7 @@ func (s *OssUploadSuite) TearDownSuite(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	// Delete objects
+	// Delete Objects
 	lor, err := s.bucket.ListObjects()
 	c.Assert(err, IsNil)
 
@@ -57,25 +57,25 @@ func (s *OssUploadSuite) TearDownSuite(c *C) {
 	testLogger.Println("test upload completed")
 }
 
-// SetUpTest runs after each test or benchmark runs
+// Run after each test or benchmark runs
 func (s *OssUploadSuite) SetUpTest(c *C) {
 	err := removeTempFiles("../oss", ".jpg")
 	c.Assert(err, IsNil)
 }
 
-// TearDownTest runs once after all tests or benchmarks have finished running
+// Run once after all tests or benchmarks have finished running
 func (s *OssUploadSuite) TearDownTest(c *C) {
 	err := removeTempFiles("../oss", ".jpg")
 	c.Assert(err, IsNil)
 }
 
-// TestUploadRoutineWithoutRecovery tests multiroutineed upload without checkpoint
+// TestUploadRoutineWithoutRecovery 多线程无断点恢复的上传
 func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	objectName := objectNamePrefix + "turwr"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 	newFile := "upload-new-file.jpg"
 
-	// Routines is not specified, by default single routine
+	// 不指定Routines，默认单线程
 	err := s.bucket.UploadFile(objectName, fileName, 100*1024)
 	c.Assert(err, IsNil)
 
@@ -90,7 +90,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Specify routine count as 1
+	// 指定线程数1
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(1))
 	c.Assert(err, IsNil)
 
@@ -105,7 +105,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Specify routine count as 3, which is smaller than parts count 5
+	// 指定线程数3，小于分片数5
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 
@@ -120,7 +120,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Specify routine count as 5, which is same as the part count 5
+	// 指定线程数5，等于分片数
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(5))
 	c.Assert(err, IsNil)
 
@@ -135,7 +135,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Specify routine count as 10, which is bigger than the part count 5.
+	// 指定线程数10，大于分片数5
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(10))
 	c.Assert(err, IsNil)
 
@@ -150,7 +150,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Invalid routine count, it will use 1 automatically.
+	// 线程值无效自动变成1
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(0))
 	os.Remove(newFile)
 	err = s.bucket.GetObjectToFile(objectName, newFile)
@@ -163,7 +163,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Invalid routine count, it will use 1 automatically
+	// 线程值无效自动变成1
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(-1))
 	os.Remove(newFile)
 	err = s.bucket.GetObjectToFile(objectName, newFile)
@@ -176,7 +176,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Option
+	// option
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(3), Meta("myprop", "mypropval"))
 
 	meta, err := s.bucket.GetObjectDetailedMeta(objectName)
@@ -195,7 +195,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 }
 
-// ErrorHooker is a UploadPart hook---it will fail the 5th part's upload.
+// ErrorHooker UploadPart请求Hook
 func ErrorHooker(id int, chunk FileChunk) error {
 	if chunk.Number == 5 {
 		time.Sleep(time.Second)
@@ -204,23 +204,23 @@ func ErrorHooker(id int, chunk FileChunk) error {
 	return nil
 }
 
-// TestUploadRoutineWithoutRecoveryNegative is multiroutineed upload without checkpoint
+// TestUploadRoutineWithoutRecovery 多线程无断点恢复的上传
 func (s *OssUploadSuite) TestUploadRoutineWithoutRecoveryNegative(c *C) {
 	objectName := objectNamePrefix + "turwrn"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 
 	uploadPartHooker = ErrorHooker
-	// Worker routine error
+	// worker线程错误
 	err := s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(2))
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	uploadPartHooker = defaultUploadPart
 
-	// Local file does not exist
+	// 本地文件不存在
 	err = s.bucket.UploadFile(objectName, "NotExist", 100*1024, Routines(2))
 	c.Assert(err, NotNil)
 
-	// The part size is invalid
+	// 指定的分片大小无效
 	err = s.bucket.UploadFile(objectName, fileName, 1024, Routines(2))
 	c.Assert(err, NotNil)
 
@@ -228,21 +228,21 @@ func (s *OssUploadSuite) TestUploadRoutineWithoutRecoveryNegative(c *C) {
 	c.Assert(err, NotNil)
 }
 
-// TestUploadRoutineWithRecovery is multi-routine upload with resumable recovery
+// TestUploadRoutineWithRecovery 多线程且有断点恢复的上传
 func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	objectName := objectNamePrefix + "turtr"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 	newFile := "upload-new-file-2.jpg"
 
-	// Use default routines and default CP file path (fileName+.cp)
-	// First upload for 4 parts
+	// Routines默认值，CP开启默认路径是fileName+.cp
+	// 第一次上传，上传4片
 	uploadPartHooker = ErrorHooker
 	err := s.bucket.UploadFile(objectName, fileName, 100*1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	uploadPartHooker = defaultUploadPart
 
-	// Check CP
+	// check cp
 	ucp := uploadCheckpoint{}
 	err = ucp.load(fileName + ".cp")
 	c.Assert(err, IsNil)
@@ -258,7 +258,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	c.Assert(len(ucp.todoParts()), Equals, 1)
 	c.Assert(len(ucp.allParts()), Equals, 5)
 
-	// Second upload, finish the remaining part
+	// 第二次上传，完成剩余的一片
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -276,14 +276,14 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	err = ucp.load(fileName + ".cp")
 	c.Assert(err, NotNil)
 
-	// Specify routines and CP
+	// Routines指定，CP指定
 	uploadPartHooker = ErrorHooker
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(2), Checkpoint(true, objectName+".cp"))
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	uploadPartHooker = defaultUploadPart
 
-	// Check CP
+	// check cp
 	ucp = uploadCheckpoint{}
 	err = ucp.load(objectName + ".cp")
 	c.Assert(err, IsNil)
@@ -316,7 +316,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	err = ucp.load(objectName + ".cp")
 	c.Assert(err, NotNil)
 
-	// Upload all 5 parts without error
+	// 一次完成上传，中间没有错误
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(3), Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -331,7 +331,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Upload all 5 parts with 10 routines without error
+	// 用多协程下载，中间没有错误
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(10), Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -346,7 +346,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	err = s.bucket.DeleteObject(objectName)
 	c.Assert(err, IsNil)
 
-	// Option
+	// option
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(3), Checkpoint(true, ""), Meta("myprop", "mypropval"))
 
 	meta, err := s.bucket.GetObjectDetailedMeta(objectName)
@@ -365,19 +365,19 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecovery(c *C) {
 	c.Assert(err, IsNil)
 }
 
-// TestUploadRoutineWithRecoveryNegative is multiroutineed upload without checkpoint
+// TestUploadRoutineWithoutRecovery 多线程无断点恢复的上传
 func (s *OssUploadSuite) TestUploadRoutineWithRecoveryNegative(c *C) {
 	objectName := objectNamePrefix + "turrn"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 
-	// The local file does not exist
+	// 本地文件不存在
 	err := s.bucket.UploadFile(objectName, "NotExist", 100*1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 
 	err = s.bucket.UploadFile(objectName, "NotExist", 100*1024, Routines(2), Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 
-	// Specified part size is invalid
+	// 指定的分片大小无效
 	err = s.bucket.UploadFile(objectName, fileName, 1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 
@@ -391,7 +391,7 @@ func (s *OssUploadSuite) TestUploadRoutineWithRecoveryNegative(c *C) {
 	c.Assert(err, NotNil)
 }
 
-// TestUploadLocalFileChange tests the file is updated while being uploaded
+// TestUploadLocalFileChange 上传过程中文件修改了
 func (s *OssUploadSuite) TestUploadLocalFileChange(c *C) {
 	objectName := objectNamePrefix + "tulfc"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
@@ -402,7 +402,7 @@ func (s *OssUploadSuite) TestUploadLocalFileChange(c *C) {
 	err := copyFile(fileName, localFile)
 	c.Assert(err, IsNil)
 
-	// First upload for 4 parts
+	// 第一次上传，上传4片
 	uploadPartHooker = ErrorHooker
 	err = s.bucket.UploadFile(objectName, localFile, 100*1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
@@ -413,7 +413,7 @@ func (s *OssUploadSuite) TestUploadLocalFileChange(c *C) {
 	err = copyFile(fileName, localFile)
 	c.Assert(err, IsNil)
 
-	// Updating the file. The second upload will re-upload all 5 parts.
+	// 文件修改，第二次上传全部分片重新上传
 	err = s.bucket.UploadFile(objectName, localFile, 100*1024, Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 

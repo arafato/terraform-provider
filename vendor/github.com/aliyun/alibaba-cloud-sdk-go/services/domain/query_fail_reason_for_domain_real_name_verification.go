@@ -76,10 +76,10 @@ func (client *Client) QueryFailReasonForDomainRealNameVerificationWithCallback(r
 // QueryFailReasonForDomainRealNameVerificationRequest is the request struct for api QueryFailReasonForDomainRealNameVerification
 type QueryFailReasonForDomainRealNameVerificationRequest struct {
 	*requests.RpcRequest
-	RealNameVerificationAction string `position:"Query" name:"RealNameVerificationAction"`
 	UserClientIp               string `position:"Query" name:"UserClientIp"`
-	DomainName                 string `position:"Query" name:"DomainName"`
 	Lang                       string `position:"Query" name:"Lang"`
+	DomainName                 string `position:"Query" name:"DomainName"`
+	RealNameVerificationAction string `position:"Query" name:"RealNameVerificationAction"`
 }
 
 // QueryFailReasonForDomainRealNameVerificationResponse is the response struct for api QueryFailReasonForDomainRealNameVerification

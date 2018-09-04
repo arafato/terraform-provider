@@ -6,34 +6,34 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// BucketACLSample shows how to get and set the bucket ACL
+// BucketACLSample 展示了如何读取/设置存储空间的权限(Bucket ACL)
 func BucketACLSample() {
-	// New client
+	// New Client
 	client, err := oss.New(endpoint, accessID, accessKey)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Create a bucket with default parameters
+	// 使用默认参数创建bucket
 	err = client.CreateBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Set bucket ACL. The valid ACLs are ACLPrivate、ACLPublicRead、ACLPublicReadWrite
+	// 场景：设置Bucket ACL，可选权限有ACLPrivate、ACLPublicRead、ACLPublicReadWrite
 	err = client.SetBucketACL(bucketName, oss.ACLPublicRead)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Get bucket ACL
+	// 查看Bucket ACL
 	gbar, err := client.GetBucketACL(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 	fmt.Println("Bucket ACL:", gbar.ACL)
 
-	// Delete the bucket
+	// 删除bucket
 	err = client.DeleteBucket(bucketName)
 	if err != nil {
 		HandleError(err)

@@ -6,15 +6,15 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// BucketRefererSample shows how to set, get and delete the bucket referer.
+// BucketRefererSample 展示了如何设置/读取/清除存储空间的白名单(Bucket Referer)
 func BucketRefererSample() {
-	// New client
+	// New Client
 	client, err := oss.New(endpoint, accessID, accessKey)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Create the bucket with default parameters
+	// 使用默认参数创建bucket
 	err = client.CreateBucket(bucketName)
 	if err != nil {
 		HandleError(err)
@@ -26,28 +26,28 @@ func BucketRefererSample() {
 		"http://www.*.com",
 	}
 
-	// Case 1: Set referers. The referers are with wildcards ? and * which could represent one and zero to multiple characters
+	// 场景1：设置referers，referer中支持?和*，分布代替一个或多个字符
 	err = client.SetBucketReferer(bucketName, referers, false)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 2: Clear referers
+	// 场景2：清空referers
 	referers = []string{}
 	err = client.SetBucketReferer(bucketName, referers, true)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Get bucket referer configuration
-	gbr, err := client.GetBucketReferqer(bucketName)
+	// 获取Bucket上设置的Lifecycle
+	gbr, err := client.GetBucketReferer(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 	fmt.Println("Bucket Referers:", gbr.RefererList,
 		"AllowEmptyReferer:", gbr.AllowEmptyReferer)
 
-	// Delete bucket
+	// 删除bucket
 	err = client.DeleteBucket(bucketName)
 	if err != nil {
 		HandleError(err)

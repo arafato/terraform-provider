@@ -77,8 +77,8 @@ func (client *Client) SaveSingleTaskForDomainNameProxyServiceWithCallback(reques
 type SaveSingleTaskForDomainNameProxyServiceRequest struct {
 	*requests.RpcRequest
 	UserClientIp string           `position:"Query" name:"UserClientIp"`
-	DomainName   string           `position:"Query" name:"DomainName"`
 	Lang         string           `position:"Query" name:"Lang"`
+	DomainName   string           `position:"Query" name:"DomainName"`
 	Status       requests.Boolean `position:"Query" name:"Status"`
 }
 

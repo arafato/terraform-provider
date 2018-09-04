@@ -7,22 +7,22 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// ObjectMetaSample shows how to get and set the object metadata
+// ObjectMetaSample 展示了如何设置、读取文件元数据(object meta)
 func ObjectMetaSample() {
-	// Create bucket
+	// 创建Bucket
 	bucket, err := GetTestBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Delete object
+	// 创建object
 	err = bucket.PutObject(objectKey, strings.NewReader("YoursObjectValue"))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 0: Set bucket meta. one or more properties could be set
-	// Note: Meta is case insensitive
+	// 场景：设置Bucket Meta，可以设置一个或多个属性。
+	// 注意：Meta不区分大小写
 	options := []oss.Option{
 		oss.Expires(futureDate),
 		oss.Meta("myprop", "mypropval")}
@@ -31,21 +31,21 @@ func ObjectMetaSample() {
 		HandleError(err)
 	}
 
-	// Case 1: Get the object metadata. Only return basic meta information includes ETag, size and last modified.
+	// 场景1：查看Object的meta，只返回少量基本meta信息，如ETag、Size、LastModified。
 	props, err := bucket.GetObjectMeta(objectKey)
 	if err != nil {
 		HandleError(err)
 	}
 	fmt.Println("Object Meta:", props)
 
-	// Case 2: Get all the detailed object meta including custom meta
+	// 场景2：查看Object的所有Meta，包括自定义的meta。
 	props, err = bucket.GetObjectDetailedMeta(objectKey)
 	if err != nil {
 		HandleError(err)
 	}
 	fmt.Println("Expires:", props.Get("Expires"))
 
-	// Case 3: Get the object's all metadata with contraints. When constraints are met, return the metadata.
+	// 场景3：查看Object的所有Meta，符合约束条件返回，不符合约束条件保存，包括自定义的meta。
 	props, err = bucket.GetObjectDetailedMeta(objectKey, oss.IfUnmodifiedSince(futureDate))
 	if err != nil {
 		HandleError(err)
@@ -63,7 +63,7 @@ func ObjectMetaSample() {
 	}
 	fmt.Println("Object ACL:", goar.ACL)
 
-	// Delete object and bucket
+	// 删除object和bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)

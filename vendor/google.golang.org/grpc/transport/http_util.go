@@ -23,13 +23,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/http2"
@@ -44,6 +42,9 @@ const (
 	http2MaxFrameLen = 16384 // 16KB frame
 	// http://http2.github.io/http2-spec/#SettingValues
 	http2InitHeaderTableSize = 4096
+	// http2IOBufSize specifies the buffer size for sending frames.
+	defaultWriteBufSize = 32 * 1024
+	defaultReadBufSize  = 32 * 1024
 	// baseContentType is the base content-type for gRPC.  This is a valid
 	// content-type on it's own, but can also include a content-subtype such as
 	// "proto" as a suffix after "+" or ";".  See
@@ -130,16 +131,12 @@ func isReservedHeader(hdr string) bool {
 	}
 	switch hdr {
 	case "content-type",
-		"user-agent",
 		"grpc-message-type",
 		"grpc-encoding",
 		"grpc-message",
 		"grpc-status",
 		"grpc-timeout",
 		"grpc-status-details-bin",
-		// Intentionally exclude grpc-previous-rpc-attempts and
-		// grpc-retry-pushback-ms, which are "reserved", but their API
-		// intentionally works via metadata.
 		"te":
 		return true
 	default:
@@ -147,11 +144,11 @@ func isReservedHeader(hdr string) bool {
 	}
 }
 
-// isWhitelistedHeader checks whether hdr should be propagated into metadata
-// visible to users, even though it is classified as "reserved", above.
-func isWhitelistedHeader(hdr string) bool {
+// isWhitelistedPseudoHeader checks whether hdr belongs to HTTP2 pseudoheaders
+// that should be propagated into metadata visible to users.
+func isWhitelistedPseudoHeader(hdr string) bool {
 	switch hdr {
-	case ":authority", "user-agent":
+	case ":authority":
 		return true
 	default:
 		return false
@@ -342,7 +339,7 @@ func (d *decodeState) processHeaderField(f hpack.HeaderField) error {
 		d.statsTrace = v
 		d.addMetadata(f.Name, string(v))
 	default:
-		if isReservedHeader(f.Name) && !isWhitelistedHeader(f.Name) {
+		if isReservedHeader(f.Name) && !isWhitelistedPseudoHeader(f.Name) {
 			break
 		}
 		v, err := decodeMetadataHeader(f.Name, f.Value)
@@ -439,17 +436,16 @@ func decodeTimeout(s string) (time.Duration, error) {
 
 const (
 	spaceByte   = ' '
-	tildeByte   = '~'
+	tildaByte   = '~'
 	percentByte = '%'
 )
 
 // encodeGrpcMessage is used to encode status code in header field
-// "grpc-message". It does percent encoding and also replaces invalid utf-8
-// characters with Unicode replacement character.
-//
-// It checks to see if each individual byte in msg is an allowable byte, and
-// then either percent encoding or passing it through. When percent encoding,
-// the byte is converted into hexadecimal notation with a '%' prepended.
+// "grpc-message".
+// It checks to see if each individual byte in msg is an
+// allowable byte, and then either percent encoding or passing it through.
+// When percent encoding, the byte is converted into hexadecimal notation
+// with a '%' prepended.
 func encodeGrpcMessage(msg string) string {
 	if msg == "" {
 		return ""
@@ -457,7 +453,7 @@ func encodeGrpcMessage(msg string) string {
 	lenMsg := len(msg)
 	for i := 0; i < lenMsg; i++ {
 		c := msg[i]
-		if !(c >= spaceByte && c <= tildeByte && c != percentByte) {
+		if !(c >= spaceByte && c < tildaByte && c != percentByte) {
 			return encodeGrpcMessageUnchecked(msg)
 		}
 	}
@@ -466,26 +462,14 @@ func encodeGrpcMessage(msg string) string {
 
 func encodeGrpcMessageUnchecked(msg string) string {
 	var buf bytes.Buffer
-	for len(msg) > 0 {
-		r, size := utf8.DecodeRuneInString(msg)
-		for _, b := range []byte(string(r)) {
-			if size > 1 {
-				// If size > 1, r is not ascii. Always do percent encoding.
-				buf.WriteString(fmt.Sprintf("%%%02X", b))
-				continue
-			}
-
-			// The for loop is necessary even if size == 1. r could be
-			// utf8.RuneError.
-			//
-			// fmt.Sprintf("%%%02X", utf8.RuneError) gives "%FFFD".
-			if b >= spaceByte && b <= tildeByte && b != percentByte {
-				buf.WriteByte(b)
-			} else {
-				buf.WriteString(fmt.Sprintf("%%%02X", b))
-			}
+	lenMsg := len(msg)
+	for i := 0; i < lenMsg; i++ {
+		c := msg[i]
+		if c >= spaceByte && c < tildaByte && c != percentByte {
+			buf.WriteByte(c)
+		} else {
+			buf.WriteString(fmt.Sprintf("%%%02X", c))
 		}
-		msg = msg[size:]
 	}
 	return buf.String()
 }
@@ -546,17 +530,10 @@ func (w *bufWriter) Write(b []byte) (n int, err error) {
 	if w.err != nil {
 		return 0, w.err
 	}
-	if w.batchSize == 0 { // Buffer has been disabled.
-		return w.conn.Write(b)
-	}
-	for len(b) > 0 {
-		nn := copy(w.buf[w.offset:], b)
-		b = b[nn:]
-		w.offset += nn
-		n += nn
-		if w.offset >= w.batchSize {
-			err = w.Flush()
-		}
+	n = copy(w.buf[w.offset:], b)
+	w.offset += n
+	if w.offset >= w.batchSize {
+		err = w.Flush()
 	}
 	return n, err
 }
@@ -582,13 +559,7 @@ type framer struct {
 }
 
 func newFramer(conn net.Conn, writeBufferSize, readBufferSize int) *framer {
-	if writeBufferSize < 0 {
-		writeBufferSize = 0
-	}
-	var r io.Reader = conn
-	if readBufferSize > 0 {
-		r = bufio.NewReaderSize(r, readBufferSize)
-	}
+	r := bufio.NewReaderSize(conn, readBufferSize)
 	w := newBufWriter(conn, writeBufferSize)
 	f := &framer{
 		writer: w,

@@ -8,9 +8,9 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// ArchiveSample archives sample
+// ArchiveSample Archive Sample
 func ArchiveSample() {
-	// Create archive bucket
+	// create archive bucket
 	client, err := oss.New(endpoint, accessID, accessKey)
 	if err != nil {
 		HandleError(err)
@@ -26,27 +26,27 @@ func ArchiveSample() {
 		HandleError(err)
 	}
 
-	// Put archive object
+	// put archive object
 	var val = "花间一壶酒，独酌无相亲。 举杯邀明月，对影成三人。"
 	err = archiveBucket.PutObject(objectKey, strings.NewReader(val))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Check whether the object is archive class
+	// check whether the object is archive class
 	meta, err := archiveBucket.GetObjectDetailedMeta(objectKey)
 	if err != nil {
 		HandleError(err)
 	}
 
 	if meta.Get("X-Oss-Storage-Class") == string(oss.StorageArchive) {
-		// Restore object
+		// restore object
 		err = archiveBucket.RestoreObject(objectKey)
 		if err != nil {
 			HandleError(err)
 		}
 
-		// Wait for restore completed
+		// wait for restore completed
 		meta, err = archiveBucket.GetObjectDetailedMeta(objectKey)
 		for meta.Get("X-Oss-Restore") == "ongoing-request=\"true\"" {
 			fmt.Println("x-oss-restore:" + meta.Get("X-Oss-Restore"))
@@ -55,16 +55,16 @@ func ArchiveSample() {
 		}
 	}
 
-	// Get restored object
+	// get restored object
 	err = archiveBucket.GetObjectToFile(objectKey, localFile)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Restore repeatedly
+	// restore repeatedly
 	err = archiveBucket.RestoreObject(objectKey)
 
-	// Delete object and bucket
+	// delete object and bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)

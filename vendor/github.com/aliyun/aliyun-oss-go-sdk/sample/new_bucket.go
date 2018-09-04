@@ -7,40 +7,40 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// NewBucketSample shows how to initialize client and bucket
+// NewBucketSample 展示了如何初始化Client、Bucket
 func NewBucketSample() {
-	// New client
+	// New Client
 	client, err := oss.New(endpoint, accessID, accessKey)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Create bucket
+	// Create Bucket
 	err = client.CreateBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// New bucket
+	// New Bucket
 	bucket, err := client.Bucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Put object, uploads an object
+	// Put Object，上传一个Object
 	var objectName = "myobject"
 	err = bucket.PutObject(objectName, strings.NewReader("MyObjectValue"))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Delete object, deletes an object
+	// Delete Object，删除Object
 	err = bucket.DeleteObject(objectName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Delete bucket
+	// 删除bucket
 	err = client.DeleteBucket(bucketName)
 	if err != nil {
 		HandleError(err)

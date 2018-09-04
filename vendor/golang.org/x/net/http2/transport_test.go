@@ -2394,12 +2394,11 @@ func TestTransportHandlerBodyClose(t *testing.T) {
 	}
 	tr.CloseIdleConnections()
 
-	if !waitCondition(5*time.Second, 100*time.Millisecond, func() bool {
-		gd := runtime.NumGoroutine() - g0
-		return gd < numReq/2
-	}) {
+	gd := runtime.NumGoroutine() - g0
+	if gd > numReq/2 {
 		t.Errorf("appeared to leak goroutines")
 	}
+
 }
 
 // https://golang.org/issue/15930

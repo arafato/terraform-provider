@@ -2,7 +2,7 @@ package oss
 
 import "io"
 
-// ProgressEventType defines transfer progress event type
+// ProgressEventType transfer progress event type
 type ProgressEventType int
 
 const (
@@ -16,19 +16,19 @@ const (
 	TransferFailedEvent
 )
 
-// ProgressEvent defines progress event
+// ProgressEvent progress event
 type ProgressEvent struct {
 	ConsumedBytes int64
 	TotalBytes    int64
 	EventType     ProgressEventType
 }
 
-// ProgressListener listens progress change
+// ProgressListener listen progress change
 type ProgressListener interface {
 	ProgressChanged(event *ProgressEvent)
 }
 
-// -------------------- Private --------------------
+// -------------------- private --------------------
 
 func newProgressEvent(eventType ProgressEventType, consumed, total int64) *ProgressEvent {
 	return &ProgressEvent{
@@ -76,7 +76,7 @@ func TeeReader(reader io.Reader, writer io.Writer, totalBytes int64, listener Pr
 func (t *teeReader) Read(p []byte) (n int, err error) {
 	n, err = t.reader.Read(p)
 
-	// Read encountered error
+	// read encountered error
 	if err != nil && err != io.EOF {
 		event := newProgressEvent(TransferFailedEvent, t.consumedBytes, t.totalBytes)
 		publishProgress(t.listener, event)
@@ -84,18 +84,18 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
 
 	if n > 0 {
 		t.consumedBytes += int64(n)
-		// CRC
+		// crc
 		if t.writer != nil {
 			if n, err := t.writer.Write(p[:n]); err != nil {
 				return n, err
 			}
 		}
-		// Progress
+		// progress
 		if t.listener != nil {
 			event := newProgressEvent(TransferDataEvent, t.consumedBytes, t.totalBytes)
 			publishProgress(t.listener, event)
 		}
-		// Track
+		// track
 		if t.tracker != nil {
 			t.tracker.completedBytes = t.consumedBytes
 		}

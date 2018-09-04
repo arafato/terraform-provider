@@ -2,69 +2,69 @@ package oss
 
 import "os"
 
-// ACLType bucket/object ACL
+// ACLType Bucket/Object的访问控制
 type ACLType string
 
 const (
-	// ACLPrivate definition : private read and write
+	// ACLPrivate 私有读写
 	ACLPrivate ACLType = "private"
 
-	// ACLPublicRead definition : public read and private write
+	// ACLPublicRead 公共读私有写
 	ACLPublicRead ACLType = "public-read"
 
-	// ACLPublicReadWrite definition : public read and public write
+	// ACLPublicReadWrite 公共读写
 	ACLPublicReadWrite ACLType = "public-read-write"
 
-	// ACLDefault Object. It's only applicable for object.
+	// ACLDefault Object默认权限，Bucket无此权限
 	ACLDefault ACLType = "default"
 )
 
-// MetadataDirectiveType specifying whether use the metadata of source object when copying object.
+// MetadataDirectiveType 对象COPY时新对象是否使用原对象的Meta
 type MetadataDirectiveType string
 
 const (
-	// MetaCopy the target object's metadata is copied from the source one
+	// MetaCopy 目标对象使用源对象的META
 	MetaCopy MetadataDirectiveType = "COPY"
 
-	// MetaReplace the target object's metadata is created as part of the copy request (not same as the source one)
+	// MetaReplace 目标对象使用自定义的META
 	MetaReplace MetadataDirectiveType = "REPLACE"
 )
 
-// StorageClassType bucket storage type
+// StorageClassType Bucket的存储类型
 type StorageClassType string
 
 const (
-	// StorageStandard standard
+	// StorageStandard 标准存储模式
 	StorageStandard StorageClassType = "Standard"
 
-	// StorageIA infrequent access
+	// StorageIA 低频存储模式
 	StorageIA StorageClassType = "IA"
 
-	// StorageArchive archive
+	// StorageArchive 归档存储模式
 	StorageArchive StorageClassType = "Archive"
 )
 
-// HTTPMethod HTTP request method
+// HTTPMethod HTTP请求方法
 type HTTPMethod string
 
 const (
-	// HTTPGet HTTP GET
+	// HTTPGet HTTP请求方法 GET
 	HTTPGet HTTPMethod = "GET"
 
-	// HTTPPut HTTP PUT
+	// HTTPPut HTTP请求方法 PUT
 	HTTPPut HTTPMethod = "PUT"
 
-	// HTTPHead HTTP HEAD
+	// HTTPHead HTTP请求方法 HEAD
 	HTTPHead HTTPMethod = "HEAD"
 
-	// HTTPPost HTTP POST
+	// HTTPPost HTTP请求方法 POST
 	HTTPPost HTTPMethod = "POST"
 
-	// HTTPDelete HTTP DELETE
+	// HTTPDelete HTTP请求方法 DELETE
 	HTTPDelete HTTPMethod = "DELETE"
 )
 
-// HTTP headers
+// Http头标签
 const (
 	HTTPHeaderAcceptEncoding     string = "Accept-Encoding"
 	HTTPHeaderAuthorization             = "Authorization"
@@ -108,7 +108,7 @@ const (
 	HTTPHeaderOssSymlinkTarget               = "X-Oss-Symlink-Target"
 )
 
-// HTTP Param
+// Http Param
 const (
 	HTTPParamExpires       = "Expires"
 	HTTPParamAccessKeyID   = "OSSAccessKeyId"
@@ -116,17 +116,17 @@ const (
 	HTTPParamSecurityToken = "security-token"
 )
 
-// Other constants
+// 其它常量
 const (
-	MaxPartSize = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
-	MinPartSize = 100 * 1024             // Min part size, 100KB
+	MaxPartSize = 5 * 1024 * 1024 * 1024 // 文件片最大值，5GB
+	MinPartSize = 100 * 1024             // 文件片最小值，100KBß
 
-	FilePermMode = os.FileMode(0664) // Default file permission
+	FilePermMode = os.FileMode(0664) // 新建文件默认权限
 
-	TempFilePrefix = "oss-go-temp-"  // Temp file prefix
-	TempFileSuffix = ".temp"         // Temp file suffix
+	TempFilePrefix = "oss-go-temp-" // 临时文件前缀
+	TempFileSuffix = ".temp"        // 临时文件后缀
 
-	CheckpointFileSuffix = ".cp"     // Checkpoint file suffix
+	CheckpointFileSuffix = ".cp" // Checkpoint文件后缀
 
-	Version = "1.9.0" // Go SDK version
+	Version = "1.8.0" // Go sdk版本
 )

@@ -15,7 +15,7 @@ type OssCopySuite struct {
 
 var _ = Suite(&OssCopySuite{})
 
-// SetUpSuite runs once when the suite starts running
+// Run once when the suite starts running
 func (s *OssCopySuite) SetUpSuite(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -31,7 +31,7 @@ func (s *OssCopySuite) SetUpSuite(c *C) {
 	testLogger.Println("test copy started")
 }
 
-// TearDownSuite runs before each test or benchmark starts running
+// Run before each test or benchmark starts running
 func (s *OssCopySuite) TearDownSuite(c *C) {
 	// Delete Part
 	lmur, err := s.bucket.ListMultipartUploads()
@@ -44,7 +44,7 @@ func (s *OssCopySuite) TearDownSuite(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	// Delete objects
+	//Delete Objects
 	lor, err := s.bucket.ListObjects()
 	c.Assert(err, IsNil)
 
@@ -56,31 +56,31 @@ func (s *OssCopySuite) TearDownSuite(c *C) {
 	testLogger.Println("test copy completed")
 }
 
-// SetUpTest runs after each test or benchmark runs
+// Run after each test or benchmark runs
 func (s *OssCopySuite) SetUpTest(c *C) {
 	err := removeTempFiles("../oss", ".jpg")
 	c.Assert(err, IsNil)
 }
 
-// TearDownTest runs once after all tests or benchmarks have finished running
+// Run once after all tests or benchmarks have finished running
 func (s *OssCopySuite) TearDownTest(c *C) {
 	err := removeTempFiles("../oss", ".jpg")
 	c.Assert(err, IsNil)
 }
 
-// TestCopyRoutineWithoutRecovery is multi-routine copy without resumable recovery
+// TestCopyRoutineWithoutRecovery 多线程无断点恢复的复制
 func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	srcObjectName := objectNamePrefix + "tcrwr"
 	destObjectName := srcObjectName + "-copy"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 	newFile := "copy-new-file.jpg"
 
-	// Upload source file
+	// 上传源文件
 	err := s.bucket.UploadFile(srcObjectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Does not specify parameter 'routines', by default it's single routine
+	// 不指定Routines，默认单线程
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024)
 	c.Assert(err, IsNil)
 
@@ -95,7 +95,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Specify one routine.
+	// 指定线程数1
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(1))
 	c.Assert(err, IsNil)
 
@@ -110,7 +110,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Specify three routines, which is less than parts count 5
+	// 指定线程数3，小于分片数5
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 
@@ -125,7 +125,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Specify 5 routines which is the same as parts count
+	// 指定线程数5，等于分片数
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(5))
 	c.Assert(err, IsNil)
 
@@ -140,7 +140,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Specify routine count 10, which is more than parts count
+	// 指定线程数10，大于分片数5
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(10))
 	c.Assert(err, IsNil)
 
@@ -155,7 +155,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Invalid routine count, will use single routine
+	// 线程值无效自动变成1
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(-1))
 	c.Assert(err, IsNil)
 
@@ -170,7 +170,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Option
+	// option
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(3), Meta("myprop", "mypropval"))
 
 	meta, err := s.bucket.GetObjectDetailedMeta(destObjectName)
@@ -192,7 +192,7 @@ func (s *OssCopySuite) TestCopyRoutineWithoutRecovery(c *C) {
 	c.Assert(err, IsNil)
 }
 
-// CopyErrorHooker is a copypart request hook
+// CopyErrorHooker CopyPart请求Hook
 func CopyErrorHooker(part copyPart) error {
 	if part.Number == 5 {
 		time.Sleep(time.Second)
@@ -201,65 +201,64 @@ func CopyErrorHooker(part copyPart) error {
 	return nil
 }
 
-// TestCopyRoutineWithoutRecoveryNegative is a multiple routines copy without checkpoint
+// TestCopyRoutineWithoutRecoveryNegative 多线程无断点恢复的复制
 func (s *OssCopySuite) TestCopyRoutineWithoutRecoveryNegative(c *C) {
 	srcObjectName := objectNamePrefix + "tcrwrn"
 	destObjectName := srcObjectName + "-copy"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 
-	// Upload source file
+	// 上传源文件
 	err := s.bucket.UploadFile(srcObjectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 
 	copyPartHooker = CopyErrorHooker
-	// Worker routine errors
+	// worker线程错误
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(2))
 
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	copyPartHooker = defaultCopyPartHook
 
-	// Source bucket does not exist
+	// 源Bucket不存在
 	err = s.bucket.CopyFile("NotExist", srcObjectName, destObjectName, 100*1024, Routines(2))
 	c.Assert(err, NotNil)
 
-	// Target object does not exist
+	// 源Object不存在
 	err = s.bucket.CopyFile(bucketName, "NotExist", destObjectName, 100*1024, Routines(2))
 
-	// The part size is invalid
+	// 指定的分片大小无效
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024, Routines(2))
 	c.Assert(err, NotNil)
 
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*1024*1024*100, Routines(2))
 	c.Assert(err, NotNil)
 
-	// Delete the source file
+	// 删除源文件
 	err = s.bucket.DeleteObject(srcObjectName)
 	c.Assert(err, IsNil)
 }
 
-// TestCopyRoutineWithRecovery is a multiple routines copy with resumable recovery
+// TestCopyRoutineWithRecovery 多线程且有断点恢复的复制
 func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	srcObjectName := objectNamePrefix + "tcrtr"
 	destObjectName := srcObjectName + "-copy"
 	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
 	newFile := "copy-new-file.jpg"
 
-	// Upload source file
+	// 上传源文件
 	err := s.bucket.UploadFile(srcObjectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Routines default value, CP's default path is destObjectName+.cp
-	// Copy object with checkpoint enabled, single runtine.
-	// Copy 4 parts---the CopyErrorHooker makes sure the copy of part 5 will fail.
+	// Routines默认值，CP开启默认路径是destObjectName+.cp
+	// 第一次上传，上传4片
 	copyPartHooker = CopyErrorHooker
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	copyPartHooker = defaultCopyPartHook
 
-	// Check CP
+	// check cp
 	ccp := copyCheckpoint{}
 	err = ccp.load(destObjectName + ".cp")
 	c.Assert(err, IsNil)
@@ -277,7 +276,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	c.Assert(len(ccp.todoParts()), Equals, 1)
 	c.Assert(ccp.PartStat[4], Equals, false)
 
-	// Second copy, finish the last part
+	// 第二次上传，完成剩余的一片
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -295,14 +294,14 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	err = ccp.load(fileName + ".cp")
 	c.Assert(err, NotNil)
 
-	// Specify Routine and CP's path
+	// Routines指定，CP指定
 	copyPartHooker = CopyErrorHooker
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(2), Checkpoint(true, srcObjectName+".cp"))
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "ErrorHooker")
 	copyPartHooker = defaultCopyPartHook
 
-	// Check CP
+	// check cp
 	ccp = copyCheckpoint{}
 	err = ccp.load(srcObjectName + ".cp")
 	c.Assert(err, IsNil)
@@ -320,7 +319,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	c.Assert(len(ccp.todoParts()), Equals, 1)
 	c.Assert(ccp.PartStat[4], Equals, false)
 
-	// Second copy, finish the last part.
+	// 第二次上传，完成剩余的一片
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(2), Checkpoint(true, srcObjectName+".cp"))
 	c.Assert(err, IsNil)
 
@@ -338,7 +337,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	err = ccp.load(srcObjectName + ".cp")
 	c.Assert(err, NotNil)
 
-	// First copy without error.
+	// 一次完成上传，中间没有错误
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(3), Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -353,7 +352,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Copy with multiple coroutines, no errors.
+	// 用多协程下载，中间没有错误
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(10), Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -368,7 +367,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Option
+	// option
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(5), Checkpoint(true, ""), Meta("myprop", "mypropval"))
 	c.Assert(err, IsNil)
 
@@ -387,26 +386,26 @@ func (s *OssCopySuite) TestCopyRoutineWithRecovery(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Delete the source file
+	// 删除源文件
 	err = s.bucket.DeleteObject(srcObjectName)
 	c.Assert(err, IsNil)
 }
 
-// TestCopyRoutineWithRecoveryNegative is a multiple routineed copy without checkpoint
+// TestCopyRoutineWithRecoveryNegative 多线程无断点恢复的复制
 func (s *OssCopySuite) TestCopyRoutineWithRecoveryNegative(c *C) {
 	srcObjectName := objectNamePrefix + "tcrwrn"
 	destObjectName := srcObjectName + "-copy"
 
-	// Source bucket does not exist
+	// 源Bucket不存在
 	err := s.bucket.CopyFile("NotExist", srcObjectName, destObjectName, 100*1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 	c.Assert(err, NotNil)
 
-	// Source object does not exist
+	// 源Object不存在
 	err = s.bucket.CopyFile(bucketName, "NotExist", destObjectName, 100*1024, Routines(2), Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 
-	// Specify part size is invalid.
+	// 指定的分片大小无效
 	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024, Checkpoint(true, ""))
 	c.Assert(err, NotNil)
 
@@ -414,7 +413,7 @@ func (s *OssCopySuite) TestCopyRoutineWithRecoveryNegative(c *C) {
 	c.Assert(err, NotNil)
 }
 
-// TestCopyFileCrossBucket is a cross bucket's direct copy.
+// TestCopyFileCrossBucket 跨Bucket直接的复制
 func (s *OssCopySuite) TestCopyFileCrossBucket(c *C) {
 	destBucketName := bucketName + "-cfcb-desc"
 	srcObjectName := objectNamePrefix + "tcrtr"
@@ -425,15 +424,15 @@ func (s *OssCopySuite) TestCopyFileCrossBucket(c *C) {
 	destBucket, err := s.client.Bucket(destBucketName)
 	c.Assert(err, IsNil)
 
-	// Create a target bucket
+	// 创建目标Bucket
 	err = s.client.CreateBucket(destBucketName)
 
-	// Upload source file
+	// 上传源文件
 	err = s.bucket.UploadFile(srcObjectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Copy files
+	// 复制文件
 	err = destBucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(5), Checkpoint(true, ""))
 	c.Assert(err, IsNil)
 
@@ -448,7 +447,7 @@ func (s *OssCopySuite) TestCopyFileCrossBucket(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Copy file with options
+	// 带option的复制
 	err = destBucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(10), Checkpoint(true, "copy.cp"), Meta("myprop", "mypropval"))
 	c.Assert(err, IsNil)
 
@@ -463,7 +462,7 @@ func (s *OssCopySuite) TestCopyFileCrossBucket(c *C) {
 	c.Assert(err, IsNil)
 	os.Remove(newFile)
 
-	// Delete target bucket
+	// 删除目标Bucket
 	err = s.client.DeleteBucket(destBucketName)
 	c.Assert(err, IsNil)
 }

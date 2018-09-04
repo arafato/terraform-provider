@@ -77,8 +77,8 @@ func (client *Client) QueryTransferOutInfoWithCallback(request *QueryTransferOut
 type QueryTransferOutInfoRequest struct {
 	*requests.RpcRequest
 	DomainName   string `position:"Query" name:"DomainName"`
-	UserClientIp string `position:"Query" name:"UserClientIp"`
 	Lang         string `position:"Query" name:"Lang"`
+	UserClientIp string `position:"Query" name:"UserClientIp"`
 }
 
 // QueryTransferOutInfoResponse is the response struct for api QueryTransferOutInfo

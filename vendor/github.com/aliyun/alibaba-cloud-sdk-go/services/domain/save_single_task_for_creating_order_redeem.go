@@ -76,10 +76,10 @@ func (client *Client) SaveSingleTaskForCreatingOrderRedeemWithCallback(request *
 // SaveSingleTaskForCreatingOrderRedeemRequest is the request struct for api SaveSingleTaskForCreatingOrderRedeem
 type SaveSingleTaskForCreatingOrderRedeemRequest struct {
 	*requests.RpcRequest
-	CurrentExpirationDate requests.Integer `position:"Query" name:"CurrentExpirationDate"`
 	UserClientIp          string           `position:"Query" name:"UserClientIp"`
-	DomainName            string           `position:"Query" name:"DomainName"`
 	Lang                  string           `position:"Query" name:"Lang"`
+	DomainName            string           `position:"Query" name:"DomainName"`
+	CurrentExpirationDate requests.Integer `position:"Query" name:"CurrentExpirationDate"`
 }
 
 // SaveSingleTaskForCreatingOrderRedeemResponse is the response struct for api SaveSingleTaskForCreatingOrderRedeem

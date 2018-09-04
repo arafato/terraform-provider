@@ -76,10 +76,10 @@ func (client *Client) CheckTransferInFeasibilityWithCallback(request *CheckTrans
 // CheckTransferInFeasibilityRequest is the request struct for api CheckTransferInFeasibility
 type CheckTransferInFeasibilityRequest struct {
 	*requests.RpcRequest
-	TransferAuthorizationCode string `position:"Query" name:"TransferAuthorizationCode"`
+	Lang                      string `position:"Query" name:"Lang"`
 	UserClientIp              string `position:"Query" name:"UserClientIp"`
 	DomainName                string `position:"Query" name:"DomainName"`
-	Lang                      string `position:"Query" name:"Lang"`
+	TransferAuthorizationCode string `position:"Query" name:"TransferAuthorizationCode"`
 }
 
 // CheckTransferInFeasibilityResponse is the response struct for api CheckTransferInFeasibility

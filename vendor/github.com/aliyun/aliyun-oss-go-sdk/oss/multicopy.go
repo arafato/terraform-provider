@@ -11,15 +11,16 @@ import (
 	"strconv"
 )
 
-// CopyFile is multipart copy object
 //
-// srcBucketName    source bucket name
-// srcObjectKey    source object name
-// destObjectKey    target object name in the form of bucketname.objectkey
-// partSize    the part size in byte.
-// options    object's contraints. Check out function InitiateMultipartUpload.
+// CopyFile 分片复制文件
 //
-// error    it's nil if the operation succeeds, otherwise it's an error object.
+// srcBucketName  源Bucket名称。
+// srcObjectKey   源Object名称。
+// destObjectKey   目标Object名称。目标Bucket名称为Bucket.BucketName。
+// partSize   复制文件片的大小，字节数。比如100 * 1024为每片100KB。
+// options    Object的属性限制项。详见InitiateMultipartUpload。
+//
+// error 操作成功error为nil，非nil为错误信息。
 //
 func (bucket Bucket) CopyFile(srcBucketName, srcObjectKey, destObjectKey string, partSize int64, options ...Option) error {
 	destBucketName := bucket.BucketName
@@ -43,9 +44,9 @@ func (bucket Bucket) CopyFile(srcBucketName, srcObjectKey, destObjectKey string,
 		partSize, options, routines)
 }
 
-// ----- Concurrently copy without checkpoint ---------
+// ----- 并发无断点的下载  -----
 
-// copyWorkerArg defines the copy worker arguments
+// 工作协程参数
 type copyWorkerArg struct {
 	bucket        *Bucket
 	imur          InitiateMultipartUploadResult
@@ -55,7 +56,7 @@ type copyWorkerArg struct {
 	hook          copyPartHook
 }
 
-// copyPartHook is the hook for testing purpose
+// Hook用于测试
 type copyPartHook func(part copyPart) error
 
 var copyPartHooker copyPartHook = defaultCopyPartHook
@@ -64,7 +65,7 @@ func defaultCopyPartHook(part copyPart) error {
 	return nil
 }
 
-// copyWorker copies worker
+// 工作协程
 func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- UploadPart, failed chan<- error, die <-chan bool) {
 	for chunk := range jobs {
 		if err := arg.hook(chunk); err != nil {
@@ -87,7 +88,7 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 	}
 }
 
-// copyScheduler
+// 调度协程
 func copyScheduler(jobs chan copyPart, parts []copyPart) {
 	for _, part := range parts {
 		jobs <- part
@@ -95,14 +96,14 @@ func copyScheduler(jobs chan copyPart, parts []copyPart) {
 	close(jobs)
 }
 
-// copyPart structure
+// 分片
 type copyPart struct {
-	Number int   // Part number (from 1 to 10,000)
-	Start  int64 // The start index in the source file.
-	End    int64 // The end index in the source file
+	Number int   // 片序号[1, 10000]
+	Start  int64 // 片起始位置
+	End    int64 // 片结束位置
 }
 
-// getCopyParts calculates copy parts
+// 文件分片
 func getCopyParts(bucket *Bucket, objectKey string, partSize int64) ([]copyPart, error) {
 	meta, err := bucket.GetObjectDetailedMeta(objectKey)
 	if err != nil {
@@ -127,7 +128,7 @@ func getCopyParts(bucket *Bucket, objectKey string, partSize int64) ([]copyPart,
 	return parts, nil
 }
 
-// getSrcObjectBytes gets the source file size
+// 获取源文件大小
 func getSrcObjectBytes(parts []copyPart) int64 {
 	var ob int64
 	for _, part := range parts {
@@ -136,20 +137,20 @@ func getSrcObjectBytes(parts []copyPart) int64 {
 	return ob
 }
 
-// copyFile is a concurrently copy without checkpoint
+// 并发无断点续传的下载
 func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destObjectKey string,
 	partSize int64, options []Option, routines int) error {
 	descBucket, err := bucket.Client.Bucket(destBucketName)
 	srcBucket, err := bucket.Client.Bucket(srcBucketName)
 	listener := getProgressListener(options)
 
-	// Get copy parts
+	// 分割文件
 	parts, err := getCopyParts(srcBucket, srcObjectKey, partSize)
 	if err != nil {
 		return err
 	}
 
-	// Initialize the multipart upload
+	// 初始化上传任务
 	imur, err := descBucket.InitiateMultipartUpload(destObjectKey, options...)
 	if err != nil {
 		return err
@@ -165,16 +166,16 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	event := newProgressEvent(TransferStartedEvent, 0, totalBytes)
 	publishProgress(listener, event)
 
-	// Start to copy workers
+	// 启动工作协程
 	arg := copyWorkerArg{descBucket, imur, srcBucketName, srcObjectKey, options, copyPartHooker}
 	for w := 1; w <= routines; w++ {
 		go copyWorker(w, arg, jobs, results, failed, die)
 	}
 
-	// Start the scheduler
+	// 并发上传分片
 	go copyScheduler(jobs, parts)
 
-	// Wait for the parts finished.
+	// 等待分片下载完成
 	completed := 0
 	ups := make([]UploadPart, len(parts))
 	for completed < len(parts) {
@@ -201,7 +202,7 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	event = newProgressEvent(TransferCompletedEvent, completedBytes, totalBytes)
 	publishProgress(listener, event)
 
-	// Complete the multipart upload
+	// 提交任务
 	_, err = descBucket.CompleteMultipartUpload(imur, ups)
 	if err != nil {
 		bucket.AbortMultipartUpload(imur)
@@ -210,27 +211,27 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	return nil
 }
 
-// ----- Concurrently copy with checkpoint  -----
+// ----- 并发有断点的下载  -----
 
 const copyCpMagic = "84F1F18C-FF1D-403B-A1D8-9DEB5F65910A"
 
 type copyCheckpoint struct {
-	Magic          string       // Magic
-	MD5            string       // CP content MD5
-	SrcBucketName  string       // Source bucket
-	SrcObjectKey   string       // Source object
-	DestBucketName string       // Target bucket
-	DestObjectKey  string       // Target object
-	CopyID         string       // Copy ID
-	ObjStat        objectStat   // Object stat
-	Parts          []copyPart   // Copy parts
-	CopyParts      []UploadPart // The uploaded parts
-	PartStat       []bool       // The part status
+	Magic          string       // magic
+	MD5            string       // cp内容的MD5
+	SrcBucketName  string       // 源Bucket
+	SrcObjectKey   string       // 源Object
+	DestBucketName string       // 目标Bucket
+	DestObjectKey  string       // 目标Bucket
+	CopyID         string       // copy id
+	ObjStat        objectStat   // 文件状态
+	Parts          []copyPart   // 全部分片
+	CopyParts      []UploadPart // 分片上传成功后的返回值
+	PartStat       []bool       // 分片下载是否完成
 }
 
-// isValid checks if the data is valid which means CP is valid and object is not updated.
+// CP数据是否有效，CP有效且Object没有更新时有效
 func (cp copyCheckpoint) isValid(bucket *Bucket, objectKey string) (bool, error) {
-	// Compare CP's magic number and the MD5.
+	// 比较CP的Magic及MD5
 	cpb := cp
 	cpb.MD5 = ""
 	js, _ := json.Marshal(cpb)
@@ -241,7 +242,7 @@ func (cp copyCheckpoint) isValid(bucket *Bucket, objectKey string) (bool, error)
 		return false, nil
 	}
 
-	// Make sure the object is not updated.
+	// 确认object没有更新
 	meta, err := bucket.GetObjectDetailedMeta(objectKey)
 	if err != nil {
 		return false, err
@@ -252,7 +253,7 @@ func (cp copyCheckpoint) isValid(bucket *Bucket, objectKey string) (bool, error)
 		return false, err
 	}
 
-	// Compare the object size and last modified time and etag.
+	// 比较Object的大小/最后修改时间/etag
 	if cp.ObjStat.Size != objectSize ||
 		cp.ObjStat.LastModified != meta.Get(HTTPHeaderLastModified) ||
 		cp.ObjStat.Etag != meta.Get(HTTPHeaderEtag) {
@@ -262,7 +263,7 @@ func (cp copyCheckpoint) isValid(bucket *Bucket, objectKey string) (bool, error)
 	return true, nil
 }
 
-// load loads from the checkpoint file
+// 从文件中load
 func (cp *copyCheckpoint) load(filePath string) error {
 	contents, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -273,17 +274,17 @@ func (cp *copyCheckpoint) load(filePath string) error {
 	return err
 }
 
-// update updates the parts status
+// 更新分片状态
 func (cp *copyCheckpoint) update(part UploadPart) {
 	cp.CopyParts[part.PartNumber-1] = part
 	cp.PartStat[part.PartNumber-1] = true
 }
 
-// dump dumps the CP to the file
+// dump到文件
 func (cp *copyCheckpoint) dump(filePath string) error {
 	bcp := *cp
 
-	// Calculate MD5
+	// 计算MD5
 	bcp.MD5 = ""
 	js, err := json.Marshal(bcp)
 	if err != nil {
@@ -293,17 +294,17 @@ func (cp *copyCheckpoint) dump(filePath string) error {
 	b64 := base64.StdEncoding.EncodeToString(sum[:])
 	bcp.MD5 = b64
 
-	// Serialization
+	// 序列化
 	js, err = json.Marshal(bcp)
 	if err != nil {
 		return err
 	}
 
-	// Dump
+	// dump
 	return ioutil.WriteFile(filePath, js, FilePermMode)
 }
 
-// todoParts returns unfinished parts
+// 未完成的分片
 func (cp copyCheckpoint) todoParts() []copyPart {
 	dps := []copyPart{}
 	for i, ps := range cp.PartStat {
@@ -314,7 +315,7 @@ func (cp copyCheckpoint) todoParts() []copyPart {
 	return dps
 }
 
-// getCompletedBytes returns finished bytes count
+// 完成的字节数
 func (cp copyCheckpoint) getCompletedBytes() int64 {
 	var completedBytes int64
 	for i, part := range cp.Parts {
@@ -325,17 +326,17 @@ func (cp copyCheckpoint) getCompletedBytes() int64 {
 	return completedBytes
 }
 
-// prepare initializes the multipart upload
+// 初始化下载任务
 func (cp *copyCheckpoint) prepare(srcBucket *Bucket, srcObjectKey string, destBucket *Bucket, destObjectKey string,
 	partSize int64, options []Option) error {
-	// CP
+	// cp
 	cp.Magic = copyCpMagic
 	cp.SrcBucketName = srcBucket.BucketName
 	cp.SrcObjectKey = srcObjectKey
 	cp.DestBucketName = destBucket.BucketName
 	cp.DestObjectKey = destObjectKey
 
-	// Object
+	// object
 	meta, err := srcBucket.GetObjectDetailedMeta(srcObjectKey)
 	if err != nil {
 		return err
@@ -350,7 +351,7 @@ func (cp *copyCheckpoint) prepare(srcBucket *Bucket, srcObjectKey string, destBu
 	cp.ObjStat.LastModified = meta.Get(HTTPHeaderLastModified)
 	cp.ObjStat.Etag = meta.Get(HTTPHeaderEtag)
 
-	// Parts
+	// parts
 	cp.Parts, err = getCopyParts(srcBucket, srcObjectKey, partSize)
 	if err != nil {
 		return err
@@ -361,7 +362,7 @@ func (cp *copyCheckpoint) prepare(srcBucket *Bucket, srcObjectKey string, destBu
 	}
 	cp.CopyParts = make([]UploadPart, len(cp.Parts))
 
-	// Init copy
+	// init copy
 	imur, err := destBucket.InitiateMultipartUpload(destObjectKey, options...)
 	if err != nil {
 		return err
@@ -382,21 +383,21 @@ func (cp *copyCheckpoint) complete(bucket *Bucket, parts []UploadPart, cpFilePat
 	return err
 }
 
-// copyFileWithCp is concurrently copy with checkpoint
+// 并发带断点的下载
 func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName, destObjectKey string,
 	partSize int64, options []Option, cpFilePath string, routines int) error {
 	descBucket, err := bucket.Client.Bucket(destBucketName)
 	srcBucket, err := bucket.Client.Bucket(srcBucketName)
 	listener := getProgressListener(options)
 
-	// Load CP data
+	// LOAD CP数据
 	ccp := copyCheckpoint{}
 	err = ccp.load(cpFilePath)
 	if err != nil {
 		os.Remove(cpFilePath)
 	}
 
-	// Load error or the CP data is invalid---reinitialize
+	// LOAD出错或数据无效重新初始化下载
 	valid, err := ccp.isValid(srcBucket, srcObjectKey)
 	if err != nil || !valid {
 		if err = ccp.prepare(srcBucket, srcObjectKey, descBucket, destObjectKey, partSize, options); err != nil {
@@ -405,7 +406,7 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 		os.Remove(cpFilePath)
 	}
 
-	// Unfinished parts
+	// 未完成的分片
 	parts := ccp.todoParts()
 	imur := InitiateMultipartUploadResult{
 		Bucket:   destBucketName,
@@ -421,16 +422,16 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 	event := newProgressEvent(TransferStartedEvent, completedBytes, ccp.ObjStat.Size)
 	publishProgress(listener, event)
 
-	// Start the worker coroutines
+	// 启动工作协程
 	arg := copyWorkerArg{descBucket, imur, srcBucketName, srcObjectKey, options, copyPartHooker}
 	for w := 1; w <= routines; w++ {
 		go copyWorker(w, arg, jobs, results, failed, die)
 	}
 
-	// Start the scheduler
+	// 并发下载分片
 	go copyScheduler(jobs, parts)
 
-	// Wait for the parts completed.
+	// 等待分片下载完成
 	completed := 0
 	for completed < len(parts) {
 		select {

@@ -77,8 +77,8 @@ func (client *Client) TransferInRefetchWhoisEmailWithCallback(request *TransferI
 type TransferInRefetchWhoisEmailRequest struct {
 	*requests.RpcRequest
 	DomainName   string `position:"Query" name:"DomainName"`
-	UserClientIp string `position:"Query" name:"UserClientIp"`
 	Lang         string `position:"Query" name:"Lang"`
+	UserClientIp string `position:"Query" name:"UserClientIp"`
 }
 
 // TransferInRefetchWhoisEmailResponse is the response struct for api TransferInRefetchWhoisEmail

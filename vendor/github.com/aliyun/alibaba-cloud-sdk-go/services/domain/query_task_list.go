@@ -76,12 +76,12 @@ func (client *Client) QueryTaskListWithCallback(request *QueryTaskListRequest, c
 // QueryTaskListRequest is the request struct for api QueryTaskList
 type QueryTaskListRequest struct {
 	*requests.RpcRequest
+	UserClientIp    string           `position:"Query" name:"UserClientIp"`
+	Lang            string           `position:"Query" name:"Lang"`
 	BeginCreateTime requests.Integer `position:"Query" name:"BeginCreateTime"`
 	EndCreateTime   requests.Integer `position:"Query" name:"EndCreateTime"`
-	UserClientIp    string           `position:"Query" name:"UserClientIp"`
-	PageSize        requests.Integer `position:"Query" name:"PageSize"`
-	Lang            string           `position:"Query" name:"Lang"`
 	PageNum         requests.Integer `position:"Query" name:"PageNum"`
+	PageSize        requests.Integer `position:"Query" name:"PageSize"`
 }
 
 // QueryTaskListResponse is the response struct for api QueryTaskList

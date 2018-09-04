@@ -10,21 +10,21 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-// GetObjectSample shows the streaming download, range download and resumable download. 
+// GetObjectSample 展示了流式下载、范围下载、断点续传下载的用法
 func GetObjectSample() {
-	// Create bucket
+	// 创建Bucket
 	bucket, err := GetTestBucket(bucketName)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Upload the object
+	// 上传对象
 	err = bucket.PutObjectFromFile(objectKey, localFile)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 1: Download the object into ReadCloser(). The body needs to be closed
+	// 场景1：下载object存储到ReadCloser，注意需要Close。
 	body, err := bucket.GetObject(objectKey)
 	if err != nil {
 		HandleError(err)
@@ -36,7 +36,7 @@ func GetObjectSample() {
 	}
 	data = data // use data
 
-	// Case 2: Download the object to byte array. This is for small object.
+	// 场景2：下载object存储到bytes数组，适合小对象。
 	buf := new(bytes.Buffer)
 	body, err = bucket.GetObject(objectKey)
 	if err != nil {
@@ -45,7 +45,7 @@ func GetObjectSample() {
 	io.Copy(buf, body)
 	body.Close()
 
-	// Case 3: Download the object to local file. The file handle needs to be specified
+	// 场景3：下载object存储到本地文件，用户打开文件传入句柄。
 	fd, err := os.OpenFile("mynewfile-1.jpg", os.O_WRONLY|os.O_CREATE, 0660)
 	if err != nil {
 		HandleError(err)
@@ -59,20 +59,20 @@ func GetObjectSample() {
 	io.Copy(fd, body)
 	body.Close()
 
-	// Case 4: Download the object to local file with file name specified
+	// 场景4：下载object存储到本地文件。
 	err = bucket.GetObjectToFile(objectKey, "mynewfile-2.jpg")
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 5: Get the object with contraints. When contraints are met, download the file. Otherwise return precondition error
-	// last modified time constraint is met, download the file
+	// 场景5：满足约束条件下载，否则返回错误。GetObject/GetObjectToFile/DownloadFile都支持该功能。
+	// 修改时间，约束条件满足，执行下载。
 	body, err = bucket.GetObject(objectKey, oss.IfModifiedSince(pastDate))
 	if err != nil {
 		HandleError(err)
 	}
 	body.Close()
-	// Last modified time contraint is not met, do not download the file
+	// 修改时间，约束条件不满足，不执行下载。
 	_, err = bucket.GetObject(objectKey, oss.IfUnmodifiedSince(pastDate))
 	if err == nil {
 		HandleError(err)
@@ -83,46 +83,45 @@ func GetObjectSample() {
 		HandleError(err)
 	}
 	etag := meta.Get(oss.HTTPHeaderEtag)
-	// Check the content, etag contraint is met, download the file
+	// 校验内容，约束条件满足，执行下载。
 	body, err = bucket.GetObject(objectKey, oss.IfMatch(etag))
 	if err != nil {
 		HandleError(err)
 	}
 	body.Close()
 
-	// Check the content, etag contraint is not met, do not download the file
+	// 校验内容，约束条件不满足，不执行下载。
 	body, err = bucket.GetObject(objectKey, oss.IfNoneMatch(etag))
 	if err == nil {
 		HandleError(err)
 	}
 
-	// Case 6: Big file's multipart download, concurrent and resumable download is supported.
-	// multipart download with part size 100KB. By default single coroutine is used and no checkpoint
+	// 场景6：大文件分片下载，支持并发下载，断点续传功能。
+	// 分片下载，分片大小为100K。默认使用不使用并发下载，不使用断点续传。
 	err = bucket.DownloadFile(objectKey, "mynewfile-3.jpg", 100*1024)
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Part size is 100K and 3 coroutines are used
+	// 分片大小为100K，3个协程并发下载。
 	err = bucket.DownloadFile(objectKey, "mynewfile-3.jpg", 100*1024, oss.Routines(3))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Part size is 100K and 3 coroutines with checkpoint
+	// 分片大小为100K，3个协程并发下载，使用断点续传下载文件。
 	err = bucket.DownloadFile(objectKey, "mynewfile-3.jpg", 100*1024, oss.Routines(3), oss.Checkpoint(true, ""))
 	if err != nil {
 		HandleError(err)
 	}
-	
-	// Specify the checkpoint file path to record which parts have been downloaded. 
-	// This file path can be specified by the 2nd parameter of Checkpoint, it will be the download directory if the file path is empty.
+
+	// 断点续传功能需要使用本地文件，记录哪些分片已经下载。该文件路径可以Checkpoint的第二个参数指定，如果为空，则为下载文件目录。
 	err = bucket.DownloadFile(objectKey, "mynewfile-3.jpg", 100*1024, oss.Checkpoint(true, "mynewfile.cp"))
 	if err != nil {
 		HandleError(err)
 	}
 
-	// Case 7: Use GZIP encoding for downloading the file, GetObject/GetObjectToFile are the same.
+	// 场景7：内容进行 GZIP压缩传输的用户。GetObject/GetObjectToFile具有相同功能。
 	err = bucket.PutObjectFromFile(objectKey, htmlLocalFile)
 	if err != nil {
 		HandleError(err)
@@ -133,7 +132,7 @@ func GetObjectSample() {
 		HandleError(err)
 	}
 
-	// Delete the object and bucket
+	// 删除object和bucket
 	err = DeleteTestBucketAndObject(bucketName)
 	if err != nil {
 		HandleError(err)
