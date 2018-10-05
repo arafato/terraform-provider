@@ -244,6 +244,18 @@ func validateSwitchCIDRNetworkAddress(v interface{}, k string) (ws []string, err
 	return
 }
 
+func validateNASDescription(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	if strings.Contains(value, " ") {
+		errors = append(errors, fmt.Errorf("%q must not contain any space", k))
+	}
+	if len(value) < 2 || len(value) > 256 {
+		errors = append(errors, fmt.Errorf("%q cannot be longer than 256 characters", k))
+
+	}
+	return
+}
+
 // validateIoOptimized ensures that the string value is a valid IoOptimized that
 // represents a IoOptimized - it adds an error otherwise
 func validateIoOptimized(v interface{}, k string) (ws []string, errors []error) {

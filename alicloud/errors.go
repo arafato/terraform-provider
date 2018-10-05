@@ -220,6 +220,8 @@ const (
 	// MNS
 	QueueNotExist = "QueueNotExist"
 	TopicNotExist = "TopicNotExist"
+	// NAS
+	InvalidNASFileSystem = "InvalidFileSystem.NotFound"
 )
 
 var SlbIsBusy = []string{"SystemBusy", "OperationBusy", "ServiceIsStopping", "BackendServer.configuring", "ServiceIsConfiguring"}
