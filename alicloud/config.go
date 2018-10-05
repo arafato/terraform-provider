@@ -26,6 +26,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dds"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ess"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ots"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/pvtz"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
@@ -95,6 +96,7 @@ type AliyunClient struct {
 	stsconn         *sts.Client
 	rkvconn         *r_kvstore.Client
 	mnsconn         *ali_mns.MNSClient
+	nasconn         *nas.Client
 }
 
 // Client for AliyunClient
@@ -438,6 +440,14 @@ func (c *Config) rkvConn() (*r_kvstore.Client, error) {
 		endpoints.AddEndpointMapping(c.RegionId, fmt.Sprintf("R-%s", string(KVSTORECode)), endpoint)
 	}
 	return r_kvstore.NewClientWithOptions(c.RegionId, getSdkConfig(), c.getAuthCredential(true))
+}
+
+func (c *Config) nasConn() (*nas.Client, error) {
+	endpoint := LoadEndpoint(c.RegionId, NASCode)
+	if endpoint != "" {
+		endpoints.AddEndpointMapping(c.RegionId, string(NASCode), endpoint)
+	}
+	return nas.NewClientWithOptions(c.RegionId, getSdkConfig(), c.getAuthCredential(true))
 }
 
 func getSdkConfig() *sdk.Config {
