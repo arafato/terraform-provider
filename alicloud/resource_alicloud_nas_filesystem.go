@@ -93,7 +93,6 @@ func resourceAlicloudNASFilesystemUpdate(d *schema.ResourceData, meta interface{
 
 func resourceAlicloudNASFilesystemRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*AliyunClient)
-	conn := client.nasconn
 
 	fs, err := client.DescribeNASFilesystemById(d.Id())
 
@@ -116,6 +115,7 @@ func resourceAlicloudNASFilesystemRead(d *schema.ResourceData, meta interface{})
 
 func resourceAlicloudNASFilesystemDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*AliyunClient)
+	conn := client.nasconn
 
 	fs, err := client.DescribeNASFilesystemById(d.Id())
 	if err != nil {
@@ -125,25 +125,26 @@ func resourceAlicloudNASFilesystemDelete(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("Error DescribeNASFilesystemById : %#v", err)
 	}
 
-	// Check if filesystem has mount points attached
+	request := nas.CreateDeleteFileSystemRequest()
+	request.FileSystemId = fs.FileSystemId
 
 	return resource.Retry(5*time.Minute, func() *resource.RetryError {
-		_, err := client.rkvconn.DeleteInstance(request)
+		_, err := conn.DeleteFileSystem(request)
 
 		if err != nil {
-			if IsExceptedError(err, InvalidNASFilesystemIdNotFound) {
+			if IsExceptedError(err, InvalidNASFileSystem) {
 				return nil
 			}
-			return resource.RetryableError(fmt.Errorf("Delete KVStore instance timeout and got an error: %#v", err))
+			return resource.RetryableError(fmt.Errorf("Delete NAS Filesystem timeout and got an error: %#v", err))
 		}
 
-		if _, err := client.DescribeRKVInstanceById(d.Id()); err != nil {
+		if _, err := client.DescribeNASFilesystemById(d.Id()); err != nil {
 			if NotFoundError(err) {
 				return nil
 			}
-			return resource.NonRetryableError(fmt.Errorf("Error Describe KVStore InstanceAttribute: %#v", err))
+			return resource.NonRetryableError(fmt.Errorf("Error Describe NAS Filesystem by ID: %#v", err))
 		}
 
-		return resource.RetryableError(fmt.Errorf("Delete KVStore instance timeout and got an error: %#v", err))
+		return resource.RetryableError(fmt.Errorf("Delete NAS Filesystem timeout and got an error: %#v", err))
 	})
 }
